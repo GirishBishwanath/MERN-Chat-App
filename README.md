@@ -1,25 +1,79 @@
 # 💬 Real-Time MERN Chat Application
 
-A high-performance, full-stack messaging platform featuring instant communication and live user synchronization.
+A full-stack real-time messaging platform enabling seamless communication with live updates and secure authentication.
 
-## 🚀 Key Technical Features
-*   **Real-Time Engine:** Built with **Socket.io** to achieve sub-100ms latency for message delivery and live "Online/Offline" status updates.
-*   **Optimized Performance:** Implemented **parallel asynchronous processing** using `Promise.all` in the backend controllers, reducing API response times by ~40%.
-*   **Modern State Management:** Utilized **Zustand** hooks for clean, scalable global state handling, significantly reducing component re-renders.
-*   **Secure Authentication:** Integrated **JWT** with **BcryptJS** hashing and **HTTP-only cookies** to ensure 100% session security and data privacy.
+---
+
+## 🚀 Key Features
+
+- **Real-Time Messaging:** Implemented using **Socket.IO** for instant message delivery and live user connectivity.
+- **Online User Tracking:** Maintains active user sessions and dynamically updates online/offline status.
+- **Secure Authentication:** Built using **JWT with HTTP-only cookies** and **bcrypt hashing** for safe user authentication.
+- **Scalable Backend APIs:** Designed RESTful APIs for user management, conversations, and messaging.
+- **Optimized Performance:** Improved backend efficiency using parallel asynchronous operations (`Promise.all`) for database writes.
+- **Efficient Data Modeling:** Structured chat system using **Conversation and Message schemas** for scalable data handling.
+- **Modern Frontend Architecture:** Built with React using **Context API and custom hooks** for clean state management.
+- **Responsive UI:** Designed chat interface with Tailwind CSS including user list, chat window, and message threads.
+
+---
+
+## 📸 Screenshots
+
+### 🔐 Authentication
+![Signup](./assets/signup.png)
+
+### 💬 Chat Interface
+
+| No Chat Selected | User Offline |
+|------------------|-------------|
+| ![](./assets/home.png) | ![](./assets/offline.png) |
+
+### ⚡ Real-Time Messaging
+![Chat](./assets/chat.png)
+
+---
 
 ## 🛠️ Tech Stack
-- **Frontend:** React.js, Tailwind CSS, Zustand, Axios
-- **Backend:** Node.js, Express.js, Socket.io
-- **Database:** MongoDB (Mongoose ODM)
-- **Authentication:** JSON Web Tokens (JWT)
+
+- **Frontend:** React.js, Tailwind CSS, Axios  
+- **Backend:** Node.js, Express.js, Socket.IO  
+- **Database:** MongoDB (Mongoose ODM)  
+- **Authentication:** JWT, Bcrypt  
+
+---
 
 ## 📁 Project Structure
-- `/frontend`: React application (Vite)
-- `/backend`: Node.js/Express server & Socket.io logic
 
-## ⚙️ Quick Start
-1. **Clone the repo:** `git clone https://github.com`
-2. **Install Dependencies:** Run `npm install` in both `/frontend` and `/backend`.
-3. **Set Environment Variables:** Create `.env` files in both folders (see `.env.example`).
-4. **Run Development:** `npm run dev` (Frontend) and `npm start` (Backend).
+```bash
+/frontend → React application (Vite)
+/backend → Express server, APIs, and Socket.IO logic
+```
+
+---
+
+## ⚙️ Setup & Installation
+1. Clone the repository
+```bash
+git clone https://github.com/GirishBishwanath/MERN-Chat-App
+```
+
+2. Install dependencies
+```bash
+cd frontend && npm install
+cd ../backend && npm install
+```
+
+3. Configure environment variables
+Create `.env` files in both folders:
+
+- **Backend:** `JWT_TOKEN`, `MONGO_URI`
+- **Frontend:** API base URL (if needed)
+
+4. Run the application
+```bash
+# Backend
+npm start
+
+# Frontend
+npm run dev
+```
