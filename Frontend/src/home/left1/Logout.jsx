@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { TbLogout2 } from "react-icons/tb";
-import axios from "axios";
+import axios from "../../utils/axiosConfig";
 import Cookies from "js-cookie";
 import toast from "react-hot-toast";
 

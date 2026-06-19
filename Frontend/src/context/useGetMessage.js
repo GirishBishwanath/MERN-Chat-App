@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import useConversation from "../statemanage/useConversation.js";
-import axios from "axios";
+import axios from "../utils/axiosConfig";
 const useGetMessage = () => {
   const [loading, setLoading] = useState(false);
   const { messages, setMessage, selectedConversation } = useConversation();
