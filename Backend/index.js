@@ -13,7 +13,10 @@ dotenv.config();
 // middleware
 app.use(express.json());
 app.use(cookieParser());
-app.use(cors());
+app.use(cors({
+    origin: ['https://mern-chat-app-jade.vercel.app', 'http://localhost:5173'],
+    credentials: true
+}));
 
 const PORT = process.env.PORT || 3001;
 const URI = process.env.MONGODB_URI;
