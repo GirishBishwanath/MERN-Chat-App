@@ -14,7 +14,7 @@ dotenv.config();
 app.use(express.json());
 app.use(cookieParser());
 app.use(cors({
-    origin: ['https://mern-chat-app-jade.vercel.app', 'http://localhost:5173'],
+    origin: ['https://mern-chat-app-jade.vercel.app', 'http://localhost:3001'],
     credentials: true
 }));
 
