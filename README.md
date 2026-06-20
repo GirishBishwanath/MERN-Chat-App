@@ -55,6 +55,8 @@ A full-stack real-time messaging platform enabling seamless communication with l
 - **Backend:** Railway — chosen over serverless platforms because Socket.IO requires a persistent, long-running connection that serverless functions don't support
 - **Database:** MongoDB Atlas
 
+Cross-domain authentication (Vercel frontend ↔ Railway backend) required setting the JWT cookie with `sameSite: "none"` and `secure: true`, since browsers block `sameSite: "strict"`/`"lax"` cookies across different domains.
+
 ---
 
 ## 📁 Project Structure
@@ -132,6 +134,7 @@ ChatApp/
 1. Clone the repository
 ```bash
 git clone https://github.com/GirishBishwanath/MERN-Chat-App
+cd MERN-Chat-App
 ```
 
 2. Install dependencies
@@ -151,9 +154,9 @@ JWT_TOKEN=your_jwt_secret_key
 
 > ⚠️ Never commit your `.env` file. It is already included in `.gitignore`.
 
-If your frontend calls the API via an environment variable, create a `.env` file inside `Frontend/`:
+Create a `.env` file inside `Frontend/`:
 ```env
-VITE_API_BASE_URL=http://localhost:4002
+VITE_BACKEND_URL=http://localhost:4002
 ```
 
 4. Run the application
@@ -167,7 +170,7 @@ cd Frontend
 npm run dev
 ```
 
-The backend runs on `http://localhost:4002` and the frontend on `http://localhost:5173` by default.
+The backend runs on `http://localhost:4002` and the frontend on `http://localhost:3001` by default.
 
 ---
 
