@@ -32,6 +32,6 @@ try {
 app.use("/api/user", userRoute);
 app.use("/api/message", messageRoute);
 
-server.listen(PORT, () => {
+server.listen(PORT, '0.0.0.0', () => {
     console.log(`Server is Running on port ${PORT}`);
 });
