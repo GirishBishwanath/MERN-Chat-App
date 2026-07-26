@@ -13,10 +13,26 @@ dotenv.config();
 // middleware
 app.use(express.json());
 app.use(cookieParser());
-app.use(cors({
-    origin: ['https://mern-chat-app-jade.vercel.app', 'http://localhost:3001'],
-    credentials: true
-}));
+
+const allowedOrigins = [
+  'https://mern-chat-app-jade.vercel.app',
+  'http://localhost:3001',
+];
+
+const corsOptions = {
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error('CORS policy violation'));
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+};
+
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 
 const PORT = process.env.PORT || 3001;
 const URI = process.env.MONGODB_URI;
