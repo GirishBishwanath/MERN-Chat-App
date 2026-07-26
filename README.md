@@ -52,10 +52,25 @@ A full-stack real-time messaging platform enabling seamless communication with l
 ## ☁️ Deployment
 
 - **Frontend:** Vercel
-- **Backend:** Railway — chosen over serverless platforms because Socket.IO requires a persistent, long-running connection that serverless functions don't support
+- **Backend:** Render (persistent Node service for Socket.IO)
 - **Database:** MongoDB Atlas
 
-Cross-domain authentication (Vercel frontend ↔ Railway backend) required setting the JWT cookie with `sameSite: "none"` and `secure: true`, since browsers block `sameSite: "strict"`/`"lax"` cookies across different domains.
+This repo includes a `render.yaml` manifest at the root so Render can deploy the backend from the `Backend/` directory automatically.
+
+Render backend settings:
+- Root Directory: `Backend`
+- Build Command: `npm install`
+- Start Command: `npm start`
+- Environment Variables:
+  - `MONGODB_URI`
+  - `JWT_TOKEN`
+
+Vercel frontend settings:
+- Add `VITE_BACKEND_URL` in Vercel environment variables
+- Example value: `https://mern-chat-app-9x81.onrender.com`
+- Redeploy the frontend after updating the variable
+
+Cross-domain authentication (Vercel frontend ↔ Render backend) requires cookies set with `sameSite: "none"` and `secure: true`, so the browser accepts the JWT cookie across different domains.
 
 ---
 
@@ -152,7 +167,7 @@ MONGODB_URI=your_mongodb_connection_string
 JWT_TOKEN=your_jwt_secret_key
 ```
 
-> ⚠️ Never commit your `.env` file. It is already included in `.gitignore`.
+> ⚠️ Never commit your `.env` file.
 
 Create a `.env` file inside `Frontend/`:
 ```env
