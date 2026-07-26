@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: mern-chat-backend
+    env: node
+    plan: starter
+    region: oregon
+    branch: main
+    buildCommand: cd Backend && npm install
+    startCommand: cd Backend && npm start
+    autoDeploy: true
+    envVars:
+      - key: MONGODB_URI
+      - key: JWT_SECRET
