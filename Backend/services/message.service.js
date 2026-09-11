@@ -9,7 +9,7 @@ import {
   createMessage,
   findMessagesByIds,
 } from "../repositories/message.repository.js";
-import User from "../models/user.model.js";
+import { findById } from "../repositories/user.repository.js";
 
 export const sendMessage = async ({ senderId, receiverId, message }) => {
   if (senderId.toString() === receiverId.toString()) {
@@ -20,7 +20,7 @@ export const sendMessage = async ({ senderId, receiverId, message }) => {
     );
   }
 
-  const receiver = await User.findById(receiverId).select("_id");
+  const receiver = await findById(receiverId);
   if (!receiver) {
     throw new AppError("Receiver not found", 404, ERROR_CODES.NOT_FOUND);
   }
