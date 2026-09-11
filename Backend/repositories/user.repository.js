@@ -10,5 +10,7 @@ export const createUser = (data) => User.create(data);
 export const findPublicById = (id) =>
   User.findById(id).select("_id fullname email");
 
+export const findById = (id) => User.findById(id).select("_id");
+
 export const listExcept = (userId) =>
   User.find({ _id: { $ne: userId } }).select("_id fullname email");
