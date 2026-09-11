@@ -1,17 +1,13 @@
-import User from "../models/user.model.js";
+import { findPublicById } from "../repositories/user.repository.js";
 import { verifyAccessToken } from "../auth/session.js";
 import { AppError } from "../errors/AppError.js";
 import { ERROR_CODES } from "../errors/errorCodes.js";
 
 const secureRoute = async (req, res, next) => {
   try {
-    const token = req.cookies.accessToken;
+    const token = req.cookies?.accessToken;
     if (!token) {
-      throw new AppError(
-        "Authentication required",
-        401,
-        ERROR_CODES.UNAUTHENTICATED
-      );
+      return res.status(401).json({ error: "Authentication required" });
     }
 
     const decoded = verifyAccessToken(token);
@@ -19,7 +15,7 @@ const secureRoute = async (req, res, next) => {
       throw new AppError("Invalid session", 401, ERROR_CODES.UNAUTHENTICATED);
     }
 
-    const user = await User.findById(decoded.userId).select("_id fullname email");
+    const user = await findPublicById(decoded.userId);
     if (!user) {
       throw new AppError("Invalid session", 401, ERROR_CODES.UNAUTHENTICATED);
     }
