@@ -43,7 +43,7 @@ describe("access authentication", () => {
 
   test("accepts a valid access session and attaches the user", async () => {
     const user = { _id: "user-123", fullname: "Test User", email: "test@example.com" };
-    User.findById = async () => ({ select: async () => user });
+    User.findById = () => ({ select: async () => user });
 
     const token = jwt.sign({ userId: "user-123" }, process.env.JWT_SECRET, {
       expiresIn: "15m",
