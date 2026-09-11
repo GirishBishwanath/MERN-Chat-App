@@ -3,7 +3,7 @@ import { verifyAccessToken } from "../auth/session.js";
 import { AppError } from "../errors/AppError.js";
 import { ERROR_CODES } from "../errors/errorCodes.js";
 
-const secureRoute = async (req, res, next) => {
+const secureRoute = async (req, res, next, { findUser = findPublicById } = {}) => {
   try {
     const token = req.cookies?.accessToken;
     if (!token) {
@@ -15,7 +15,7 @@ const secureRoute = async (req, res, next) => {
       throw new AppError("Invalid session", 401, ERROR_CODES.UNAUTHENTICATED);
     }
 
-    const user = await findPublicById(decoded.userId);
+    const user = await findUser(decoded.userId);
     if (!user) {
       throw new AppError("Invalid session", 401, ERROR_CODES.UNAUTHENTICATED);
     }
