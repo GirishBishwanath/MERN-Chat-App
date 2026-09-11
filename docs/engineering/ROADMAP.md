@@ -7,28 +7,28 @@ This roadmap is the version-controlled execution plan for evolving the chat appl
 
 ## Phases
 
-| Phase | Name | Primary outcome |
-|---|---|---|
-| 1 | Forensic Repository Audit | Verified architecture, severity-ranked findings, migration risks, and execution order |
-| 2 | Production Auth & Session Reliability | Server-authoritative authentication, secure cookie/session lifecycle, `/auth/me`, logout and expiry handling |
-| 3 | Backend Architecture / Error / Validation Foundation | Clear backend boundaries, validation, centralized errors, config validation, health/readiness/liveness |
-| 4 | TypeScript Migration | Strict TypeScript, domain types, DTOs, API/socket/event contracts |
-| 5 | Frontend Architecture / State Management | Deliberate UI, feature, server-state, client-state, API and realtime boundaries |
-| 6 | PostgreSQL Data Model Design | Relational schema, constraints, indexes, access patterns, cursor-pagination design |
-| 7 | Safe MongoDB → PostgreSQL Migration | PostgreSQL implementation, migrations, transactions, integrity checks, rollback strategy |
-| 8 | Production API / Message Pagination | Stable API contracts, authorization, bounded cursor pagination, consistent errors/statuses |
-| 9 | Authenticated Realtime / Socket Correctness | Server-authenticated Socket.IO, reconnect/multi-device correctness, deduplication |
-| 10 | Redis Distributed Use Cases | Justified Redis usage for presence, rate limiting, Socket.IO scaling, or demonstrated caching |
-| 11 | Security Hardening | Public-exposure security review and regression tests |
-| 12 | Testing System | Unit, integration, realtime, E2E, contract, and load-testing foundations |
-| 13 | Docker / Local Development | Production-quality images and reproducible local infrastructure |
-| 14 | GitHub Actions CI/CD | Automated validation, image builds, staging/smoke verification, rollback strategy |
-| 15 | Kafka / Event-Driven Architecture | Meaningful domain events, typed envelopes, retries, ordering, observability |
-| 16 | Outbox / Idempotent Consumers / Reliability | Transactional outbox, duplicate safety, retries, DLQ, failure-mode tests |
-| 17 | Observability / Incident Debugging | Structured telemetry and actionable production diagnosis |
-| 18 | Performance / Load Testing | Real measurements, bottleneck identification, reproducible before/after results |
-| 19 | GenAI / RAG Product Capability | Product-integrated AI with access control, cost/failure/privacy controls and evaluation |
-| 20 | AWS / Kubernetes / Terraform / Final Review | Reproducible cloud architecture and skeptical hiring-manager review |
+| Phase | Name | Primary outcome | Status |
+|---|---|---|---|
+| 1 | Forensic Repository Audit | Verified architecture, severity-ranked findings, migration risks, and execution order | **Complete** |
+| 2 | Production Auth & Session Reliability | Server-authoritative authentication, secure cookie/session lifecycle, `/auth/me`, logout and expiry handling | **Implemented; verification pending local execution** |
+| 3 | Backend Architecture / Error / Validation Foundation | Clear backend boundaries, validation, centralized errors, config validation, health/readiness/liveness | Pending |
+| 4 | TypeScript Migration | Strict TypeScript, domain types, DTOs, API/socket/event contracts | Pending |
+| 5 | Frontend Architecture / State Management | Deliberate UI, feature, server-state, client-state, API and realtime boundaries | Pending |
+| 6 | PostgreSQL Data Model Design | Relational schema, constraints, indexes, access patterns, cursor-pagination design | Pending |
+| 7 | Safe MongoDB → PostgreSQL Migration | PostgreSQL implementation, migrations, transactions, integrity checks, rollback strategy | Pending |
+| 8 | Production API / Message Pagination | Stable API contracts, authorization, bounded cursor pagination, consistent errors/statuses | Pending |
+| 9 | Authenticated Realtime / Socket Correctness | Server-authenticated Socket.IO, reconnect/multi-device correctness, deduplication | Pending |
+| 10 | Redis Distributed Use Cases | Justified Redis usage for presence, rate limiting, Socket.IO scaling, or demonstrated caching | Pending |
+| 11 | Security Hardening | Public-exposure security review and regression tests | Pending |
+| 12 | Testing System | Unit, integration, realtime, E2E, contract, and load-testing foundations | Pending |
+| 13 | Docker / Local Development | Production-quality images and reproducible local infrastructure | Pending |
+| 14 | GitHub Actions CI/CD | Automated validation, image builds, staging/smoke verification, rollback strategy | Pending |
+| 15 | Kafka / Event-Driven Architecture | Meaningful domain events, typed envelopes, retries, ordering, observability | Pending |
+| 16 | Outbox / Idempotent Consumers / Reliability | Transactional outbox, duplicate safety, retries, DLQ, failure-mode tests | Pending |
+| 17 | Observability / Incident Debugging | Structured telemetry and actionable production diagnosis | Pending |
+| 18 | Performance / Load Testing | Real measurements, bottleneck identification, reproducible before/after results | Pending |
+| 19 | GenAI / RAG Product Capability | Product-integrated AI with access control, cost/failure/privacy controls and evaluation | Pending |
+| 20 | AWS / Kubernetes / Terraform / Final Review | Reproducible cloud architecture and skeptical hiring-manager review | Pending |
 
 ## Execution rules
 
