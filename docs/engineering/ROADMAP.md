@@ -12,7 +12,7 @@ This roadmap is the version-controlled execution plan for evolving the chat appl
 | 1 | Forensic Repository Audit | Verified architecture, severity-ranked findings, migration risks, and execution order | **Complete** |
 | 2 | Production Auth & Session Reliability | Server-authoritative authentication, secure cookie/session lifecycle, `/auth/me`, logout and expiry handling | **Implemented; verification completed locally** |
 | 3 | Backend Architecture / Error / Validation Foundation | Clear backend boundaries, validation, centralized errors, config validation, health/readiness/liveness | **Complete; 17/17 backend tests passed locally** |
-| 4 | TypeScript Migration | Strict TypeScript, domain types, DTOs, API/socket/event contracts | Pending |
+| 4 | TypeScript Migration | Strict TypeScript, domain types, DTOs, API/socket/event contracts | **In progress; backend foundation/auth slice migrated** |
 | 5 | Frontend Architecture / State Management | Deliberate UI, feature, server-state, client-state, API and realtime boundaries | Pending |
 | 6 | PostgreSQL Data Model Design | Relational schema, constraints, indexes, access patterns, cursor-pagination design | Pending |
 | 7 | Safe MongoDB → PostgreSQL Migration | PostgreSQL implementation, migrations, transactions, integrity checks, rollback strategy | Pending |
@@ -88,4 +88,4 @@ The repository currently uses a `Backend/` and `Frontend/` layout with Express, 
 
 Phase 03 local verification is complete: the backend test command `node --test auth/*.test.js middleware/*.test.js` passed all 17 tests with zero failures.
 
-The most recent `main` commit is the source of truth for phase execution.
+Phase 04 is currently being developed on `feat/typescript-migration`. The first slice establishes strict backend TypeScript configuration and migrates environment configuration, the application error contract, structured logger, request/validation/error middleware, user/session persistence boundaries, authentication/session lifecycle, user service/controller/routes, and typed authenticated request contracts. PostgreSQL and distributed infrastructure remain untouched.
