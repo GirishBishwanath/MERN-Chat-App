@@ -3,15 +3,15 @@ import assert from "node:assert/strict";
 import jwt from "jsonwebtoken";
 import { verifyAccessToken, clearAuthCookies } from "./session.js";
 import secureRoute from "../middleware/secureRoute.js";
-import User from "../models/user.model.js";
+import * as userRepository from "../repositories/user.repository.js";
 
 process.env.JWT_SECRET = "test-only-auth-secret";
 
 describe("access authentication", () => {
-  const originalFindById = User.findById;
+  const originalFindPublicById = userRepository.findPublicById;
 
   afterEach(() => {
-    User.findById = originalFindById;
+    userRepository.findPublicById = originalFindPublicById;
   });
 
   test("verifies a valid access token", () => {
@@ -43,7 +43,7 @@ describe("access authentication", () => {
 
   test("accepts a valid access session and attaches the user", async () => {
     const user = { _id: "user-123", fullname: "Test User", email: "test@example.com" };
-    User.findById = () => ({ select: async () => user });
+    userRepository.findPublicById = async () => user;
 
     const token = jwt.sign({ userId: "user-123" }, process.env.JWT_SECRET, {
       expiresIn: "15m",
