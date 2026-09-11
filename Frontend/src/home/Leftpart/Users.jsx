@@ -3,7 +3,7 @@ import User from "./User";
 import useGetAllUsers from "../../context/useGetAllUsers";
 
 function Users() {
-  const [allUsers, loading] = useGetAllUsers();
+  const [allUsers] = useGetAllUsers();
   console.log(allUsers);
   return (
     <div>
