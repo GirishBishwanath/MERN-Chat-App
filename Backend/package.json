@@ -5,7 +5,7 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "test": "node --test auth/*.test.js",
+    "test": "node --test auth/*.test.js middleware/*.test.js",
     "start": "node index.js",
     "dev": "nodemon index.js"
   },
