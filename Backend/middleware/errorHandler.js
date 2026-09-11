@@ -15,14 +15,20 @@ export const notFoundHandler = (req, res, next) => {
 export const errorHandler = (error, req, res, _next) => {
   let appError = error;
 
-  if (error?.name === "ValidationError") {
+  if (error?.name === "TokenExpiredError" || error?.name === "JsonWebTokenError") {
+    appError = new AppError("Session expired", 401, ERROR_CODES.SESSION_EXPIRED);
+  } else if (error?.name === "ValidationError") {
     appError = new AppError(
       "Database validation failed",
       400,
       ERROR_CODES.VALIDATION_ERROR
     );
   } else if (error?.name === "CastError") {
-    appError = new AppError("Invalid resource identifier", 400, ERROR_CODES.VALIDATION_ERROR);
+    appError = new AppError(
+      "Invalid resource identifier",
+      400,
+      ERROR_CODES.VALIDATION_ERROR
+    );
   } else if (error?.code === 11000) {
     appError = new AppError("Resource already exists", 409, ERROR_CODES.CONFLICT);
   } else if (!(error instanceof AppError)) {
