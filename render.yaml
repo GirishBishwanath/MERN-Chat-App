@@ -11,3 +11,4 @@ services:
     envVars:
       - key: MONGODB_URI
       - key: JWT_SECRET
+      - key: CORS_ORIGINS
