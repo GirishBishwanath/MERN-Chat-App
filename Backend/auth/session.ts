@@ -104,9 +104,14 @@ export const clearAuthCookies = (res: Response): void => {
 export const verifyAccessToken = (token: string): AccessTokenPayload => {
   const decoded = jwt.verify(token, config.jwtSecret);
 
-  if (typeof decoded === "string" || typeof decoded.userId !== "string") {
+  if (typeof decoded === "string") {
     throw new Error("Invalid access token payload");
   }
 
-  return decoded as AccessTokenPayload;
+  const { userId } = decoded;
+  if (typeof userId !== "string") {
+    throw new Error("Invalid access token payload");
+  }
+
+  return { ...decoded, userId };
 };
