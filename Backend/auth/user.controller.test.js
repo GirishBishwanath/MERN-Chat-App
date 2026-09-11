@@ -81,6 +81,35 @@ describe("authentication controllers", () => {
     assert.equal(response.cookies[1][0], "refreshToken");
   });
 
+  test("creates a session on successful signup", async () => {
+    User.findOne = async () => null;
+    User.create = async (data) => ({
+      _id: "user-456",
+      fullname: data.fullname,
+      email: data.email,
+      password: data.password,
+    });
+    Session.create = async (session) => session;
+    const response = createResponse();
+
+    await signup(
+      {
+        body: {
+          fullname: " Test User ",
+          email: "TEST@example.com",
+          password: "password",
+          confirmPassword: "password",
+        },
+      },
+      response
+    );
+
+    assert.equal(response.statusCode, 201);
+    assert.equal(response.body.user.email, "test@example.com");
+    assert.equal(response.body.user.fullname, "Test User");
+    assert.equal(response.cookies.length, 2);
+  });
+
   test("rejects signup when passwords do not match", async () => {
     const response = createResponse();
 
@@ -98,6 +127,15 @@ describe("authentication controllers", () => {
 
     assert.equal(response.statusCode, 400);
     assert.deepEqual(response.body, { error: "Passwords do not match" });
+  });
+
+  test("rejects malformed signup data", async () => {
+    const response = createResponse();
+
+    await signup({ body: { email: "test@example.com" } }, response);
+
+    assert.equal(response.statusCode, 400);
+    assert.deepEqual(response.body, { error: "Invalid signup data" });
   });
 
   test("rejects duplicate signup", async () => {
