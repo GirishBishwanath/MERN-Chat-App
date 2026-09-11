@@ -4,7 +4,7 @@
 ![Realtime](https://img.shields.io/badge/Feature-RealTime-blue)
 ![Auth](https://img.shields.io/badge/Auth-Session%20%2B%20JWT-orange)
 
-A full-stack real-time messaging platform enabling seamless communication with server-authoritative authentication and live updates.
+A full-stack real-time messaging platform enabling communication with server-authoritative authentication and live updates.
 
 🔗 **Live Demo:** [mern-chat-app-jade.vercel.app](https://mern-chat-app-jade.vercel.app)
 📦 **Repo:** [github.com/GirishBishwanath/MERN-Chat-App](https://github.com/GirishBishwanath/MERN-Chat-App)
@@ -13,15 +13,13 @@ A full-stack real-time messaging platform enabling seamless communication with s
 
 ## 🚀 Key Features
 
-- **Real-Time Messaging:** Implemented using **Socket.IO** for instant message delivery and live user connectivity.
+- **Real-Time Messaging:** Implemented using **Socket.IO** for message delivery and live user connectivity.
 - **Online User Tracking:** Maintains active user sessions and dynamically updates online/offline status.
 - **Server-Authoritative Authentication:** Short-lived JWT access cookies plus persistent refresh sessions stored server-side.
 - **Secure Cookies:** Authentication credentials are stored in HttpOnly cookies and are never read by frontend JavaScript.
 - **Session Lifecycle:** Includes `/me`, refresh, logout, and logout-all-devices server endpoints with session expiration and revocation.
 - **Password Security:** Passwords are hashed with bcrypt and confirmation credentials are not persisted.
 - **Modern Frontend Architecture:** Authentication state has an explicit `loading`, `authenticated`, and `unauthenticated` lifecycle.
-
----
 
 ## 🛠️ Tech Stack
 
@@ -46,7 +44,7 @@ Express API
   ├── accessToken (15 minutes)
   │     └── JWT → user identity
   │
-  └── refreshToken (opaque, 30 days)
+  └── refreshToken (30 days)
         └── SHA-256 hash stored in MongoDB Session
 
 Page load
@@ -63,31 +61,9 @@ Logout all devices
   → clear current cookies
 ```
 
-The refresh token is opaque and only its SHA-256 hash is persisted. The same refresh token remains valid for the server-side session lifetime rather than being naively rotated on every refresh; this avoids multi-tab and multi-device refresh races. The access token is deliberately short-lived so compromise has a limited lifetime.
+The refresh token is opaque and only its SHA-256 hash is persisted. Refresh updates the session's `lastUsedAt` value and issues a new short-lived access token. The refresh token itself is deliberately stable for the lifetime of the server-side session to avoid multi-tab/device rotation races; the session expires after 30 days unless revoked.
 
 For production cross-domain deployment, authentication cookies use `HttpOnly`, `Secure`, and `SameSite=None`. Local development uses `Secure=false` and `SameSite=Lax` so cookies work over HTTP localhost.
-
----
-
-## 🏗️ Backend Architecture
-
-The backend is being evolved incrementally toward explicit production boundaries:
-
-```text
-HTTP Route
-   ↓
-Middleware (auth / validation / request context)
-   ↓
-Controller (HTTP transport)
-   ↓
-Service (business rules / invariants)
-   ↓
-Repository (Mongoose persistence)
-   ↓
-MongoDB
-```
-
-Phase 03 adds centralized typed error codes, request validation, request IDs, structured JSON logging, health/readiness endpoints, startup/shutdown handling, and repository boundaries. Database transactions, message pagination, authenticated Socket.IO identity, distributed Redis use cases, and event-driven infrastructure remain later roadmap work.
 
 ---
 
@@ -156,6 +132,8 @@ ChatApp/
 │   ├── services/
 │   │   ├── message.service.js
 │   │   └── user.service.js
+│   ├── SocketIO/
+│   │   └── server.js
 │   ├── utils/
 │   │   └── logger.js
 │   └── validation/
@@ -196,7 +174,7 @@ PORT=4002
 MONGODB_URI=your_mongodb_connection_string
 JWT_SECRET=your_long_random_jwt_secret
 NODE_ENV=development
-CORS_ORIGINS=http://localhost:3001,https://mern-chat-app-jade.vercel.app
+CORS_ORIGINS=http://localhost:3001
 ```
 
 > ⚠️ Never commit your `.env` file.
