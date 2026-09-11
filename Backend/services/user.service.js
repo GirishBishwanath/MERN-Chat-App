@@ -16,7 +16,26 @@ export const sanitizeUser = (user) => ({
 
 const normalizeEmail = (email) => email.trim().toLowerCase();
 
-export const registerUser = async ({ fullname, email, password }) => {
+export const registerUser = async ({
+  fullname,
+  email,
+  password,
+  confirmPassword,
+}) => {
+  if (
+    typeof fullname !== "string" ||
+    fullname.trim().length < 2 ||
+    typeof email !== "string" ||
+    typeof password !== "string" ||
+    typeof confirmPassword !== "string"
+  ) {
+    throw new AppError("Invalid signup data", 400, ERROR_CODES.VALIDATION_ERROR);
+  }
+
+  if (password !== confirmPassword) {
+    throw new AppError("Passwords do not match", 400, ERROR_CODES.VALIDATION_ERROR);
+  }
+
   const normalizedEmail = normalizeEmail(email);
   const existingUser = await findByEmail(normalizedEmail);
 
@@ -37,6 +56,14 @@ export const registerUser = async ({ fullname, email, password }) => {
 };
 
 export const authenticateUser = async (email, password) => {
+  if (typeof email !== "string" || typeof password !== "string") {
+    throw new AppError(
+      "Invalid user credential",
+      401,
+      ERROR_CODES.INVALID_CREDENTIALS
+    );
+  }
+
   const user = await findByEmail(normalizeEmail(email), true);
 
   if (!user || !(await bcrypt.compare(password, user.password))) {
