@@ -16,8 +16,8 @@ import {
 } from "../services/user.service.js";
 
 export const signup = async (req, res) => {
-  const { fullname, email, password } = req.body;
-  const user = await registerUser({ fullname, email, password });
+  const { fullname, email, password, confirmPassword } = req.body;
+  const user = await registerUser({ fullname, email, password, confirmPassword });
 
   await setAuthCookies(user._id, res);
   return res.status(201).json({
