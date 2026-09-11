@@ -11,7 +11,7 @@ This roadmap is the version-controlled execution plan for evolving the chat appl
 |---|---|---|---|
 | 1 | Forensic Repository Audit | Verified architecture, severity-ranked findings, migration risks, and execution order | **Complete** |
 | 2 | Production Auth & Session Reliability | Server-authoritative authentication, secure cookie/session lifecycle, `/auth/me`, logout and expiry handling | **Implemented; verification completed locally** |
-| 3 | Backend Architecture / Error / Validation Foundation | Clear backend boundaries, validation, centralized errors, config validation, health/readiness/liveness | **Implemented; verification pending local execution** |
+| 3 | Backend Architecture / Error / Validation Foundation | Clear backend boundaries, validation, centralized errors, config validation, health/readiness/liveness | **Complete; 17/17 backend tests passed locally** |
 | 4 | TypeScript Migration | Strict TypeScript, domain types, DTOs, API/socket/event contracts | Pending |
 | 5 | Frontend Architecture / State Management | Deliberate UI, feature, server-state, client-state, API and realtime boundaries | Pending |
 | 6 | PostgreSQL Data Model Design | Relational schema, constraints, indexes, access patterns, cursor-pagination design | Pending |
@@ -84,6 +84,8 @@ Complete whatever can be done safely without inventing facts.
 
 ## Current baseline note
 
-The repository currently uses a `Backend/` and `Frontend/` layout with Express, MongoDB/Mongoose, Socket.IO, JWT cookies, React, Axios, React Router, and Zustand. Phase 03 now adds explicit backend validation, application errors, centralized error mapping, request IDs, structured request logging, service/repository boundaries where they carry business or persistence responsibility, and health/readiness/liveness endpoints.
+The repository currently uses a `Backend/` and `Frontend/` layout with Express, MongoDB/Mongoose, Socket.IO, JWT cookies, React, Axios, React Router, and Zustand. Phase 03 adds explicit backend validation, application errors, centralized error mapping, request IDs, structured request logging, service/repository boundaries where they carry business or persistence responsibility, and health/readiness/liveness endpoints.
+
+Phase 03 local verification is complete: the backend test command `node --test auth/*.test.js middleware/*.test.js` passed all 17 tests with zero failures.
 
 The most recent `main` commit is the source of truth for phase execution.
