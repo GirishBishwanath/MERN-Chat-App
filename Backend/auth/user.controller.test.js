@@ -24,15 +24,17 @@ describe("authentication controllers", () => {
 
   test("rejects login for a nonexistent user without dereferencing it", async () => {
     User.findOne = () => ({ select: async () => null });
-    const response = createResponse();
 
-    await login(
-      { body: { email: "missing@example.com", password: "password" } },
-      response
+    await assert.rejects(
+      () => login(
+        { body: { email: "missing@example.com", password: "password" } },
+        createResponse()
+      ),
+      (error) =>
+        error.statusCode === 401 &&
+        error.code === "INVALID_CREDENTIALS" &&
+        error.message === "Invalid user credential"
     );
-
-    assert.equal(response.statusCode, 401);
-    assert.deepEqual(response.body, { error: "Invalid user credential" });
   });
 
   test("rejects login with an invalid password", async () => {
@@ -45,15 +47,18 @@ describe("authentication controllers", () => {
         password: passwordHash,
       }),
     });
-    const response = createResponse();
 
-    await login(
-      { body: { email: "test@example.com", password: "wrong-password" } },
-      response
+    await assert.rejects(
+      () =>
+        login(
+          { body: { email: "test@example.com", password: "wrong-password" } },
+          createResponse()
+        ),
+      (error) =>
+        error.statusCode === 401 &&
+        error.code === "INVALID_CREDENTIALS" &&
+        error.message === "Invalid user credential"
     );
-
-    assert.equal(response.statusCode, 401);
-    assert.deepEqual(response.body, { error: "Invalid user credential" });
   });
 
   test("creates a session on successful login", async () => {
@@ -111,23 +116,24 @@ describe("authentication controllers", () => {
   });
 
   test("rejects signup when passwords do not match", async () => {
-    const response = createResponse();
-
-    await signup(
-      {
-        body: {
-          fullname: "Test User",
-          email: "test@example.com",
-          password: "one",
-          confirmPassword: "two",
-        },
-      },
-      response
-    ).catch((error) => {
-      assert.equal(error.statusCode, 400);
-      assert.equal(error.code, "VALIDATION_ERROR");
-      assert.equal(error.message, "Passwords do not match");
-    });
+    await assert.rejects(
+      () =>
+        signup(
+          {
+            body: {
+              fullname: "Test User",
+              email: "test@example.com",
+              password: "one",
+              confirmPassword: "two",
+            },
+          },
+          createResponse()
+        ),
+      (error) =>
+        error.statusCode === 400 &&
+        error.code === "VALIDATION_ERROR" &&
+        error.message === "Passwords do not match"
+    );
   });
 
   test("rejects malformed signup data", async () => {
