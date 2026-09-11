@@ -1,4 +1,4 @@
-import test, { afterEach, describe } from "node:test";
+import test, { describe } from "node:test";
 import assert from "node:assert/strict";
 import jwt from "jsonwebtoken";
 import { verifyAccessToken, clearAuthCookies } from "./session.js";
@@ -8,12 +8,6 @@ import * as userRepository from "../repositories/user.repository.js";
 process.env.JWT_SECRET = "test-only-auth-secret";
 
 describe("access authentication", () => {
-  const originalFindPublicById = userRepository.findPublicById;
-
-  afterEach(() => {
-    userRepository.findPublicById = originalFindPublicById;
-  });
-
   test("verifies a valid access token", () => {
     const token = jwt.sign({ userId: "user-123" }, process.env.JWT_SECRET, {
       expiresIn: "15m",
@@ -43,21 +37,27 @@ describe("access authentication", () => {
 
   test("accepts a valid access session and attaches the user", async () => {
     const user = { _id: "user-123", fullname: "Test User", email: "test@example.com" };
-    userRepository.findPublicById = async () => user;
+    const originalFindPublicById = userRepository.findPublicById;
 
-    const token = jwt.sign({ userId: "user-123" }, process.env.JWT_SECRET, {
-      expiresIn: "15m",
-    });
-    const req = { cookies: { accessToken: token } };
-    const response = createResponse();
-    let nextCalled = false;
+    try {
+      userRepository.findPublicById = async () => user;
 
-    await secureRoute(req, response, () => {
-      nextCalled = true;
-    });
+      const token = jwt.sign({ userId: "user-123" }, process.env.JWT_SECRET, {
+        expiresIn: "15m",
+      });
+      const req = { cookies: { accessToken: token } };
+      const response = createResponse();
+      let nextCalled = false;
 
-    assert.equal(nextCalled, true);
-    assert.deepEqual(req.user, user);
+      await secureRoute(req, response, () => {
+        nextCalled = true;
+      });
+
+      assert.equal(nextCalled, true);
+      assert.deepEqual(req.user, user);
+    } finally {
+      userRepository.findPublicById = originalFindPublicById;
+    }
   });
 
   test("clears both authentication cookies with secure attributes", () => {
