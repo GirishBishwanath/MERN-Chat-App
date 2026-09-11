@@ -4,7 +4,7 @@ import {
   clearAuthCookies,
   revokeAllSessions,
   revokeRefreshSession,
-  rotateRefreshSession,
+  refreshSession,
   setAuthCookies,
 } from "../auth/session.js";
 
@@ -103,7 +103,7 @@ export const refresh = async (req, res) => {
       return res.status(401).json({ error: "Session expired" });
     }
 
-    const session = await rotateRefreshSession(refreshToken, res);
+    const session = await refreshSession(refreshToken, res);
     if (!session) {
       clearAuthCookies(res);
       return res.status(401).json({ error: "Session expired" });
