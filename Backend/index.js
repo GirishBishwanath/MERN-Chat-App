@@ -1,3 +1,4 @@
+import express from "express";
 import mongoose from "mongoose";
 import cors from "cors";
 import cookieParser from "cookie-parser";
@@ -27,7 +28,7 @@ app.use(cors({
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Accept", "X-Request-Id"],
 }));
-app.use(expressJson());
+app.use(express.json());
 app.use(cookieParser());
 
 app.use("/health", healthRoute);
@@ -36,15 +37,6 @@ app.use("/api/message", messageRoute);
 
 app.use(notFoundHandler);
 app.use(errorHandler);
-
-function expressJson() {
-  return (req, res, next) => {
-    if (req.method === "GET" || req.method === "HEAD") {
-      return next();
-    }
-    return import("express").then(({ default: express }) => express.json()(req, res, next));
-  };
-}
 
 const startServer = async () => {
   await mongoose.connect(config.mongodbUri);
