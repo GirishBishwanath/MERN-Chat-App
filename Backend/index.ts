@@ -1,4 +1,3 @@
-import express from "express";
 import mongoose from "mongoose";
 import cors from "cors";
 import cookieParser from "cookie-parser";
@@ -32,7 +31,7 @@ app.use(
     ],
   })
 );
-app.use(express.json());
+app.use(require("express").json());
 app.use(cookieParser());
 
 app.use("/health", healthRoute);
@@ -64,6 +63,8 @@ process.once("SIGTERM", () => void shutdown("SIGTERM"));
 process.once("SIGINT", () => void shutdown("SIGINT"));
 
 void startServer().catch((error: unknown) => {
-  logger.error("server_start_failed", { errorName: error instanceof Error ? error.name : "UnknownError" });
+  logger.error("server_start_failed", {
+    errorName: error instanceof Error ? error.name : "UnknownError",
+  });
   process.exit(1);
 });
