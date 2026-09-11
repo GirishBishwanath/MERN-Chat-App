@@ -123,40 +123,41 @@ describe("authentication controllers", () => {
         },
       },
       response
-    );
-
-    assert.equal(response.statusCode, 400);
-    assert.deepEqual(response.body, { error: "Passwords do not match" });
+    ).catch((error) => {
+      assert.equal(error.statusCode, 400);
+      assert.equal(error.code, "VALIDATION_ERROR");
+      assert.equal(error.message, "Passwords do not match");
+    });
   });
 
   test("rejects malformed signup data", async () => {
-    const response = createResponse();
-
-    await signup({ body: { email: "test@example.com" } }, response);
-
-    assert.equal(response.statusCode, 400);
-    assert.deepEqual(response.body, { error: "Invalid signup data" });
+    await assert.rejects(
+      () => signup({ body: { email: "test@example.com" } }, createResponse()),
+      (error) => error.statusCode === 400 && error.code === "VALIDATION_ERROR"
+    );
   });
 
   test("rejects duplicate signup with conflict status", async () => {
     User.findOne = async () => ({ _id: "existing-user" });
-    const response = createResponse();
 
-    await signup(
-      {
-        body: {
-          fullname: "Test User",
-          email: "TEST@example.com",
-          password: "password",
-          confirmPassword: "password",
-        },
-      },
-      response
-    ).catch((error) => {
-      assert.equal(error.statusCode, 409);
-      assert.equal(error.code, "CONFLICT");
-      assert.equal(error.message, "User already registered");
-    });
+    await assert.rejects(
+      () =>
+        signup(
+          {
+            body: {
+              fullname: "Test User",
+              email: "TEST@example.com",
+              password: "password",
+              confirmPassword: "password",
+            },
+          },
+          createResponse()
+        ),
+      (error) =>
+        error.statusCode === 409 &&
+        error.code === "CONFLICT" &&
+        error.message === "User already registered"
+    );
   });
 
   test("revokes the refresh session during logout", async () => {
