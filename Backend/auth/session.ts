@@ -38,13 +38,13 @@ const hashToken = (token: string): string =>
 const createRefreshToken = (): string =>
   crypto.randomBytes(48).toString("base64url");
 
-const issueAccessToken = (userId: Types.ObjectId | string): string =>
+const issueAccessToken = (userId: Types.ObjectId): string =>
   jwt.sign({ userId: userId.toString() }, config.jwtSecret, {
     expiresIn: ACCESS_TOKEN_TTL,
   });
 
 export const setAuthCookies = async (
-  userId: Types.ObjectId | string,
+  userId: Types.ObjectId,
   res: Response
 ): Promise<void> => {
   const refreshToken = createRefreshToken();
@@ -91,7 +91,7 @@ export const revokeRefreshSession = async (
 };
 
 export const revokeAllSessions = async (
-  userId: Types.ObjectId | string
+  userId: Types.ObjectId
 ): Promise<void> => {
   await Session.deleteMany({ userId });
 };
