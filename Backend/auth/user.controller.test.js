@@ -138,7 +138,7 @@ describe("authentication controllers", () => {
     assert.deepEqual(response.body, { error: "Invalid signup data" });
   });
 
-  test("rejects duplicate signup", async () => {
+  test("rejects duplicate signup with conflict status", async () => {
     User.findOne = async () => ({ _id: "existing-user" });
     const response = createResponse();
 
@@ -152,10 +152,11 @@ describe("authentication controllers", () => {
         },
       },
       response
-    );
-
-    assert.equal(response.statusCode, 400);
-    assert.deepEqual(response.body, { error: "User already registered" });
+    ).catch((error) => {
+      assert.equal(error.statusCode, 409);
+      assert.equal(error.code, "CONFLICT");
+      assert.equal(error.message, "User already registered");
+    });
   });
 
   test("revokes the refresh session during logout", async () => {
