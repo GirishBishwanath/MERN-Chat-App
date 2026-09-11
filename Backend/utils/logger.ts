@@ -23,9 +23,9 @@ const write = (
 
 export const logger = Object.freeze({
   info: (message: string, metadata?: LogMetadata): void =>
-    write("info", message, metadata),
+    write("info", message, metadata ?? {}),
   warn: (message: string, metadata?: LogMetadata): void =>
-    write("warn", message, metadata),
+    write("warn", message, metadata ?? {}),
   error: (message: string, metadata?: LogMetadata): void =>
-    write("error", message, metadata),
+    write("error", message, metadata ?? {}),
 });
