@@ -10,13 +10,23 @@ import { app, server } from "./SocketIO/server.js";
 
 dotenv.config();
 
-// middleware
+const PORT = process.env.PORT || 3001;
+const URI = process.env.MONGODB_URI;
+
+if (!URI) {
+  throw new Error("MONGODB_URI environment variable is not configured");
+}
+
+if (!process.env.JWT_SECRET) {
+  throw new Error("JWT_SECRET environment variable is not configured");
+}
+
 app.use(express.json());
 app.use(cookieParser());
 
 const allowedOrigins = [
-  'https://mern-chat-app-jade.vercel.app',
-  'http://localhost:3001',
+  "https://mern-chat-app-jade.vercel.app",
+  "http://localhost:3001",
 ];
 
 const corsOptions = {
@@ -24,30 +34,29 @@ const corsOptions = {
     if (!origin || allowedOrigins.includes(origin)) {
       return callback(null, true);
     }
-    return callback(new Error('CORS policy violation'));
+    return callback(new Error("CORS policy violation"));
   },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Accept"],
 };
 
 app.use(cors(corsOptions));
-app.options('*', cors(corsOptions));
+app.options("*", cors(corsOptions));
 
-const PORT = process.env.PORT || 3001;
-const URI = process.env.MONGODB_URI;
-
-try {
-    mongoose.connect(URI);
-    console.log("Connected to MongoDB");
-} catch (error) {
-    console.log(error);
-}
-
-//routes
 app.use("/api/user", userRoute);
 app.use("/api/message", messageRoute);
 
-server.listen(PORT, '0.0.0.0', () => {
+const startServer = async () => {
+  await mongoose.connect(URI);
+  console.log("Connected to MongoDB");
+
+  server.listen(PORT, "0.0.0.0", () => {
     console.log(`Server is Running on port ${PORT}`);
+  });
+};
+
+startServer().catch((error) => {
+  console.error("Failed to start server:", error);
+  process.exit(1);
 });
