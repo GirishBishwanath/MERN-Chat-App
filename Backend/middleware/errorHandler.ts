@@ -1,8 +1,5 @@
 import type { ErrorRequestHandler, NextFunction, Request, Response } from "express";
-import {
-  CastError as MongooseCastError,
-  ValidationError as MongooseValidationError,
-} from "mongoose";
+import mongoose from "mongoose";
 import { JsonWebTokenError, TokenExpiredError } from "jsonwebtoken";
 
 import { AppError } from "../errors/AppError.js";
@@ -56,13 +53,13 @@ export const errorHandler: ErrorRequestHandler = (
     appError = new AppError("Origin is not allowed", 403, ERROR_CODES.FORBIDDEN);
   } else if (error instanceof TokenExpiredError || error instanceof JsonWebTokenError) {
     appError = new AppError("Session expired", 401, ERROR_CODES.SESSION_EXPIRED);
-  } else if (error instanceof MongooseValidationError) {
+  } else if (error instanceof mongoose.Error.ValidationError) {
     appError = new AppError(
       "Database validation failed",
       400,
       ERROR_CODES.VALIDATION_ERROR
     );
-  } else if (error instanceof MongooseCastError) {
+  } else if (error instanceof mongoose.Error.CastError) {
     appError = new AppError(
       "Invalid resource identifier",
       400,
