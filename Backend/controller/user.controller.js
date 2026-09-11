@@ -53,6 +53,10 @@ export const refresh = async (req, res) => {
     const user = await getPublicUser(session.userId);
     return res.status(200).json({ user: sanitizeUser(user) });
   } catch (error) {
+    if (error?.statusCode !== 404) {
+      throw error;
+    }
+
     await revokeAllSessions(session.userId);
     clearAuthCookies(res);
     throw new AppError("Session expired", 401, ERROR_CODES.SESSION_EXPIRED);
