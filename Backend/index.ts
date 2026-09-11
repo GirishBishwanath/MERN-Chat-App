@@ -1,3 +1,4 @@
+import express from "express";
 import mongoose from "mongoose";
 import cors from "cors";
 import cookieParser from "cookie-parser";
@@ -31,7 +32,7 @@ app.use(
     ],
   })
 );
-app.use(require("express").json());
+app.use(express.json());
 app.use(cookieParser());
 
 app.use("/health", healthRoute);
