@@ -58,23 +58,14 @@ export const setAuthCookies = async (userId, res) => {
   res.cookie("refreshToken", refreshToken, refreshCookieOptions);
 };
 
-export const rotateRefreshSession = async (refreshToken, res) => {
-  const newRefreshToken = createRefreshToken();
+export const refreshSession = async (refreshToken, res) => {
   const now = new Date();
-  const expiresAt = new Date(now.getTime() + REFRESH_TOKEN_TTL_MS);
-
   const session = await Session.findOneAndUpdate(
     {
       tokenHash: hashToken(refreshToken),
       expiresAt: { $gt: now },
     },
-    {
-      $set: {
-        tokenHash: hashToken(newRefreshToken),
-        expiresAt,
-        lastUsedAt: now,
-      },
-    },
+    { $set: { lastUsedAt: now } },
     { new: true }
   );
 
@@ -83,7 +74,6 @@ export const rotateRefreshSession = async (refreshToken, res) => {
   }
 
   res.cookie("accessToken", issueAccessToken(session.userId), accessCookieOptions);
-  res.cookie("refreshToken", newRefreshToken, refreshCookieOptions);
   return session;
 };
 
