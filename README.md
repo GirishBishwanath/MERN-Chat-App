@@ -192,7 +192,7 @@ cd ../Frontend && npm install
 
 Create `Backend/.env` from `Backend/.env.example`:
 ```env
-PORT=3001
+PORT=4002
 MONGODB_URI=your_mongodb_connection_string
 JWT_SECRET=your_long_random_jwt_secret
 NODE_ENV=development
