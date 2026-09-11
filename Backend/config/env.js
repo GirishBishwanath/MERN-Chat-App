@@ -15,10 +15,14 @@ if (!Number.isInteger(port) || port < 1 || port > 65535) {
   throw new Error("PORT environment variable must be a valid TCP port");
 }
 
-const corsOrigins = (process.env.CORS_ORIGINS || "http://localhost:3001,https://mern-chat-app-jade.vercel.app")
+const corsOrigins = (process.env.CORS_ORIGINS || "http://localhost:3001")
   .split(",")
   .map((origin) => origin.trim())
   .filter(Boolean);
+
+if (corsOrigins.length === 0) {
+  throw new Error("CORS_ORIGINS environment variable must contain at least one origin");
+}
 
 export const config = Object.freeze({
   nodeEnv: process.env.NODE_ENV || "development",
