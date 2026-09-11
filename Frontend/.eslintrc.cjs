@@ -15,7 +15,7 @@ module.exports = {
     'react/jsx-no-target-blank': 'off',
     'react/prop-types': 'off',
     'react-refresh/only-export-components': 'off',
-    'no-unused-vars': ['error', { varsIgnorePattern: '^React$' }],
+    'no-unused-vars': ['error', { varsIgnorePattern: '^(React|daisyui)$' }],
   },
   overrides: [
     {
