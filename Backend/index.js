@@ -1,36 +1,23 @@
-import express from "express";
-import dotenv from "dotenv";
 import mongoose from "mongoose";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 
+import { config } from "./config/env.js";
 import userRoute from "./routes/user.route.js";
 import messageRoute from "./routes/message.route.js";
+import healthRoute from "./routes/health.route.js";
 import { app, server } from "./SocketIO/server.js";
+import { requestContext } from "./middleware/requestContext.js";
+import { notFoundHandler, errorHandler } from "./middleware/errorHandler.js";
+import { logger } from "./utils/logger.js";
 
-dotenv.config();
-
-const PORT = process.env.PORT || 3001;
-const URI = process.env.MONGODB_URI;
-
-if (!URI) {
-  throw new Error("MONGODB_URI environment variable is not configured");
-}
-
-if (!process.env.JWT_SECRET) {
-  throw new Error("JWT_SECRET environment variable is not configured");
-}
-
-app.use(express.json());
-app.use(cookieParser());
-
-const allowedOrigins = [
-  "https://mern-chat-app-jade.vercel.app",
-  "http://localhost:3001",
-];
-
-const corsOptions = {
+app.use(requestContext);
+app.use(cors({
   origin: (origin, callback) => {
+    const allowedOrigins = [
+      "https://mern-chat-app-jade.vercel.app",
+      "http://localhost:3001",
+    ];
     if (!origin || allowedOrigins.includes(origin)) {
       return callback(null, true);
     }
@@ -38,25 +25,49 @@ const corsOptions = {
   },
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Accept"],
-};
+  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Accept", "X-Request-Id"],
+}));
+app.use(expressJson());
+app.use(cookieParser());
 
-app.use(cors(corsOptions));
-app.options("*", cors(corsOptions));
-
+app.use("/health", healthRoute);
 app.use("/api/user", userRoute);
 app.use("/api/message", messageRoute);
 
-const startServer = async () => {
-  await mongoose.connect(URI);
-  console.log("Connected to MongoDB");
+app.use(notFoundHandler);
+app.use(errorHandler);
 
-  server.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server is Running on port ${PORT}`);
+function expressJson() {
+  return (req, res, next) => {
+    if (req.method === "GET" || req.method === "HEAD") {
+      return next();
+    }
+    return import("express").then(({ default: express }) => express.json()(req, res, next));
+  };
+}
+
+const startServer = async () => {
+  await mongoose.connect(config.mongodbUri);
+  logger.info("database_connected", { database: "mongodb" });
+
+  server.listen(config.port, "0.0.0.0", () => {
+    logger.info("server_started", { port: config.port });
   });
 };
 
+const shutdown = async (signal) => {
+  logger.info("server_shutdown_started", { signal });
+  server.close(async () => {
+    await mongoose.disconnect();
+    logger.info("server_shutdown_completed");
+    process.exit(0);
+  });
+};
+
+process.once("SIGTERM", () => shutdown("SIGTERM"));
+process.once("SIGINT", () => shutdown("SIGINT"));
+
 startServer().catch((error) => {
-  console.error("Failed to start server:", error);
+  logger.error("server_start_failed", { errorName: error?.name });
   process.exit(1);
 });
