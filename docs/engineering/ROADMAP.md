@@ -10,8 +10,8 @@ This roadmap is the version-controlled execution plan for evolving the chat appl
 | Phase | Name | Primary outcome | Status |
 |---|---|---|---|
 | 1 | Forensic Repository Audit | Verified architecture, severity-ranked findings, migration risks, and execution order | **Complete** |
-| 2 | Production Auth & Session Reliability | Server-authoritative authentication, secure cookie/session lifecycle, `/auth/me`, logout and expiry handling | **Implemented; verification pending local execution** |
-| 3 | Backend Architecture / Error / Validation Foundation | Clear backend boundaries, validation, centralized errors, config validation, health/readiness/liveness | Pending |
+| 2 | Production Auth & Session Reliability | Server-authoritative authentication, secure cookie/session lifecycle, `/auth/me`, logout and expiry handling | **Implemented; verification completed locally** |
+| 3 | Backend Architecture / Error / Validation Foundation | Clear backend boundaries, validation, centralized errors, config validation, health/readiness/liveness | **Implemented; verification pending local execution** |
 | 4 | TypeScript Migration | Strict TypeScript, domain types, DTOs, API/socket/event contracts | Pending |
 | 5 | Frontend Architecture / State Management | Deliberate UI, feature, server-state, client-state, API and realtime boundaries | Pending |
 | 6 | PostgreSQL Data Model Design | Relational schema, constraints, indexes, access patterns, cursor-pagination design | Pending |
@@ -84,6 +84,6 @@ Complete whatever can be done safely without inventing facts.
 
 ## Current baseline note
 
-The repository currently uses a `Backend/` and `Frontend/` layout with Express, MongoDB/Mongoose, Socket.IO, JWT cookies, React, Axios, React Router, and Zustand. Current committed code contains technical debt that must be verified rather than assumed, including authentication lifecycle gaps, ad-hoc error handling, unbounded message retrieval, single-instance in-memory presence, and underdeveloped automated testing.
+The repository currently uses a `Backend/` and `Frontend/` layout with Express, MongoDB/Mongoose, Socket.IO, JWT cookies, React, Axios, React Router, and Zustand. Phase 03 now adds explicit backend validation, application errors, centralized error mapping, request IDs, structured request logging, service/repository boundaries where they carry business or persistence responsibility, and health/readiness/liveness endpoints.
 
 The most recent `main` commit is the source of truth for phase execution.
