@@ -6,11 +6,15 @@ import Login from "./components/Login";
 import { useAuth } from "./context/AuthProvider";
 import { Toaster } from "react-hot-toast";
 import Logout from "./home/left1/Logout";
-
 import { Navigate, Route, Routes } from "react-router-dom";
+
 function App() {
-  const [authUser, setAuthUser] = useAuth();
-  console.log(authUser);
+  const { authUser, authStatus } = useAuth();
+
+  if (authStatus === "loading") {
+    return <div className="flex h-screen items-center justify-center">Loading...</div>;
+  }
+
   return (
     <>
       <Routes>
@@ -23,21 +27,18 @@ function App() {
                 <Left />
                 <Right />
               </div>
-
-
-            
             ) : (
-              <Navigate to={"/login"} />
+              <Navigate to="/login" replace />
             )
           }
         />
         <Route
           path="/login"
-          element={authUser ? <Navigate to="/" /> : <Login />}
+          element={authUser ? <Navigate to="/" replace /> : <Login />}
         />
         <Route
           path="/signup"
-          element={authUser ? <Navigate to="/" /> : <Signup />}
+          element={authUser ? <Navigate to="/" replace /> : <Signup />}
         />
       </Routes>
       <Toaster />
@@ -46,17 +47,3 @@ function App() {
 }
 
 export default App;
-
-
-
-
-
-
-
-
-
-
-
-
-
- 
