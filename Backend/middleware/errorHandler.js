@@ -15,7 +15,11 @@ export const notFoundHandler = (req, res, next) => {
 export const errorHandler = (error, req, res, _next) => {
   let appError = error;
 
-  if (error?.name === "TokenExpiredError" || error?.name === "JsonWebTokenError") {
+  if (error?.type === "entity.parse.failed") {
+    appError = new AppError("Malformed JSON request", 400, ERROR_CODES.VALIDATION_ERROR);
+  } else if (error?.message === "CORS policy violation") {
+    appError = new AppError("Origin is not allowed", 403, ERROR_CODES.FORBIDDEN);
+  } else if (error?.name === "TokenExpiredError" || error?.name === "JsonWebTokenError") {
     appError = new AppError("Session expired", 401, ERROR_CODES.SESSION_EXPIRED);
   } else if (error?.name === "ValidationError") {
     appError = new AppError(
