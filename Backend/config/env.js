@@ -10,7 +10,7 @@ const required = (name) => {
   return value;
 };
 
-const port = Number.parseInt(process.env.PORT || "3001", 10);
+const port = Number.parseInt(process.env.PORT || "4002", 10);
 if (!Number.isInteger(port) || port < 1 || port > 65535) {
   throw new Error("PORT environment variable must be a valid TCP port");
 }
