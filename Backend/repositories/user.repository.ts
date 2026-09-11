@@ -1,6 +1,6 @@
 import type { Types } from "mongoose";
 
-import User, { type UserDocument } from "../models/user.model.js";
+import User, { type User as UserRecord, type UserDocument } from "../models/user.model.js";
 
 export type UserId = Types.ObjectId | string;
 
@@ -19,12 +19,10 @@ export const findByEmail = (
 };
 
 export const createUser = (
-  data: Pick<UserDocument["_doc"], "fullname" | "email" | "password">
+  data: Pick<UserRecord, "fullname" | "email" | "password">
 ): Promise<UserDocument> => User.create(data);
 
-export const findPublicById = (
-  id: UserId
-): Promise<PublicUser | null> =>
+export const findPublicById = (id: UserId): Promise<PublicUser | null> =>
   User.findById(id).select("_id fullname email").lean<PublicUser>().exec();
 
 export const findById = (id: UserId): Promise<Pick<PublicUser, "_id"> | null> =>
