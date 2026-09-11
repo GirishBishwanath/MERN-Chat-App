@@ -4,8 +4,13 @@ import axios from "../utils/axiosConfig";
 export const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
-  const [authUser, setAuthUser] = useState(null);
+  const [authUser, setAuthUserState] = useState(null);
   const [authStatus, setAuthStatus] = useState("loading");
+
+  const setAuthUser = (user) => {
+    setAuthUserState(user);
+    setAuthStatus(user ? "authenticated" : "unauthenticated");
+  };
 
   useEffect(() => {
     let mounted = true;
@@ -14,7 +19,7 @@ export const AuthProvider = ({ children }) => {
       try {
         const response = await axios.get("/api/user/me");
         if (mounted) {
-          setAuthUser(response.data.user);
+          setAuthUserState(response.data.user);
           setAuthStatus("authenticated");
         }
       } catch (error) {
@@ -22,17 +27,17 @@ export const AuthProvider = ({ children }) => {
           try {
             const refreshResponse = await axios.post("/api/user/refresh");
             if (mounted) {
-              setAuthUser(refreshResponse.data.user);
+              setAuthUserState(refreshResponse.data.user);
               setAuthStatus("authenticated");
             }
             return;
           } catch {
-            // A missing or expired refresh session means the user is signed out.
+            // The refresh session is missing or expired.
           }
         }
 
         if (mounted) {
-          setAuthUser(null);
+          setAuthUserState(null);
           setAuthStatus("unauthenticated");
         }
       }
@@ -40,7 +45,7 @@ export const AuthProvider = ({ children }) => {
 
     const handleAuthExpired = () => {
       if (mounted) {
-        setAuthUser(null);
+        setAuthUserState(null);
         setAuthStatus("unauthenticated");
       }
     };
