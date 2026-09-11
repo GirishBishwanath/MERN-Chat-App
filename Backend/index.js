@@ -15,18 +15,20 @@ import { logger } from "./utils/logger.js";
 app.use(requestContext);
 app.use(cors({
   origin: (origin, callback) => {
-    const allowedOrigins = [
-      "https://mern-chat-app-jade.vercel.app",
-      "http://localhost:3001",
-    ];
-    if (!origin || allowedOrigins.includes(origin)) {
+    if (!origin || config.corsOrigins.includes(origin)) {
       return callback(null, true);
     }
     return callback(new Error("CORS policy violation"));
   },
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Accept", "X-Request-Id"],
+  allowedHeaders: [
+    "Content-Type",
+    "Authorization",
+    "X-Requested-With",
+    "Accept",
+    "X-Request-Id",
+  ],
 }));
 app.use(express.json());
 app.use(cookieParser());
