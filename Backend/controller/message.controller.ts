@@ -1,7 +1,11 @@
 import type { Response } from "express";
 import { Types } from "mongoose";
 
-import { getReceiverSocketId, io } from "../SocketIO/server.js";
+import {
+  getReceiverSocketId,
+  io,
+  toMessageEventPayload,
+} from "../SocketIO/server.js";
 import {
   getMessages,
   sendMessage as createMessage,
@@ -23,7 +27,7 @@ export const sendMessage = async (
 
   const receiverSocketId = getReceiverSocketId(receiverId.toString());
   if (receiverSocketId) {
-    io.to(receiverSocketId).emit("newMessage", newMessage);
+    io.to(receiverSocketId).emit("newMessage", toMessageEventPayload(newMessage));
   }
 
   return res.status(201).json(newMessage);
