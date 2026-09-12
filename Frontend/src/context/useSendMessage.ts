@@ -10,7 +10,7 @@ interface UseSendMessageResult {
 
 const useSendMessage = (): UseSendMessageResult => {
   const [loading, setLoading] = useState(false);
-  const { messages, setMessage, selectedConversation } = useConversation();
+  const { setMessage, selectedConversation } = useConversation();
 
   const sendMessages = async (message: string): Promise<void> => {
     if (!selectedConversation?._id || !message.trim()) return;
@@ -21,7 +21,7 @@ const useSendMessage = (): UseSendMessageResult => {
         `/api/message/send/${selectedConversation._id}`,
         { message }
       );
-      setMessage([...messages, response.data]);
+      setMessage((currentMessages) => [...currentMessages, response.data]);
     } catch (error) {
       console.error("Error in send messages", error);
     } finally {
