@@ -13,10 +13,16 @@ import type {
 } from "../types/socket";
 
 export type AppSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
+export type SocketConnectionStatus =
+  | "disconnected"
+  | "connecting"
+  | "connected"
+  | "reconnecting";
 
 interface SocketContextValue {
   socket: AppSocket | null;
   onlineUsers: string[];
+  connectionStatus: SocketConnectionStatus;
 }
 
 const SocketContext = createContext<SocketContextValue | undefined>(undefined);
@@ -36,18 +42,22 @@ export function useSocketContext(): SocketContextValue {
 export function SocketProvider({ children }: SocketProviderProps) {
   const [socket, setSocket] = useState<AppSocket | null>(null);
   const [onlineUsers, setOnlineUsers] = useState<string[]>([]);
+  const [connectionStatus, setConnectionStatus] =
+    useState<SocketConnectionStatus>("disconnected");
   const { authUser } = useAuth();
 
   useEffect(() => {
     if (!authUser) {
-      setSocket((currentSocket: AppSocket | null) => {
+      setSocket((currentSocket) => {
         currentSocket?.close();
         return null;
       });
       setOnlineUsers([]);
+      setConnectionStatus("disconnected");
       return;
     }
 
+    let active = true;
     const nextSocket: AppSocket = io(
       import.meta.env.VITE_BACKEND_URL || "http://localhost:4002",
       {
@@ -58,21 +68,53 @@ export function SocketProvider({ children }: SocketProviderProps) {
       }
     );
 
-    const handleOnlineUsers = (userIds: string[]) => setOnlineUsers(userIds);
+    const handleConnect = () => {
+      if (!active) return;
+      setConnectionStatus("connected");
+    };
+
+    const handleDisconnect = () => {
+      if (!active) return;
+      setConnectionStatus("reconnecting");
+      setOnlineUsers([]);
+    };
+
+    const handleConnectError = () => {
+      if (!active) return;
+      setConnectionStatus("reconnecting");
+      setOnlineUsers([]);
+    };
+
+    const handleOnlineUsers = (userIds: string[]) => {
+      if (!active) return;
+      setOnlineUsers(userIds);
+    };
+
+    setConnectionStatus("connecting");
+    nextSocket.on("connect", handleConnect);
+    nextSocket.on("disconnect", handleDisconnect);
+    nextSocket.on("connect_error", handleConnectError);
     nextSocket.on("getOnlineUsers", handleOnlineUsers);
     setSocket(nextSocket);
 
     return () => {
+      active = false;
+      nextSocket.off("connect", handleConnect);
+      nextSocket.off("disconnect", handleDisconnect);
+      nextSocket.off("connect_error", handleConnectError);
       nextSocket.off("getOnlineUsers", handleOnlineUsers);
       nextSocket.close();
-      setSocket((currentSocket: AppSocket | null) =>
+      setSocket((currentSocket) =>
         currentSocket === nextSocket ? null : currentSocket
       );
+      setConnectionStatus("disconnected");
     };
   }, [authUser]);
 
   return (
-    <SocketContext.Provider value={{ socket, onlineUsers }}>
+    <SocketContext.Provider
+      value={{ socket, onlineUsers, connectionStatus }}
+    >
       {children}
     </SocketContext.Provider>
   );
