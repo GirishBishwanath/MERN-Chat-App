@@ -3,11 +3,16 @@ import { CiMenuFries } from "react-icons/ci";
 import Chatuser from "./Chatuser";
 import Messages from "./Messages";
 import Typesend from "./Typesend";
-import useConversation from "../../statemanage/useConversation";
+import { useConversationStore } from "../../state/conversationStore";
 import { useAuth } from "../../context/AuthProvider";
 
 function Right() {
-  const { selectedConversation, setSelectedConversation } = useConversation();
+  const selectedConversation = useConversationStore(
+    (state) => state.selectedConversation
+  );
+  const setSelectedConversation = useConversationStore(
+    (state) => state.setSelectedConversation
+  );
 
   useEffect(() => {
     setSelectedConversation(null);
