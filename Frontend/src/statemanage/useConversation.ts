@@ -1,11 +1,13 @@
 import { create } from "zustand";
 import type { Message, PublicUser } from "../types/api";
 
+export type MessageUpdater = Message[] | ((currentMessages: Message[]) => Message[]);
+
 export interface ConversationState {
   selectedConversation: PublicUser | null;
   setSelectedConversation: (selectedConversation: PublicUser | null) => void;
   messages: Message[];
-  setMessage: (messages: Message[]) => void;
+  setMessage: (messages: MessageUpdater) => void;
 }
 
 const useConversation = create<ConversationState>((set) => ({
@@ -13,7 +15,11 @@ const useConversation = create<ConversationState>((set) => ({
   setSelectedConversation: (selectedConversation) =>
     set({ selectedConversation }),
   messages: [],
-  setMessage: (messages) => set({ messages }),
+  setMessage: (messages) =>
+    set((state) => ({
+      messages:
+        typeof messages === "function" ? messages(state.messages) : messages,
+    })),
 }));
 
 export default useConversation;
