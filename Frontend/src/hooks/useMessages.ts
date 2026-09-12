@@ -25,37 +25,40 @@ export function useMessages(): UseMessagesResult {
         : []
   );
   const replaceMessages = useConversationStore((state) => state.replaceMessages);
-  const [state, setState] = useState({ loading: false, error: false, retryKey: 0 });
+  const [retryKey, setRetryKey] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
     if (!selectedConversationId) {
-      setState((current) => ({ ...current, loading: false, error: false }));
+      setLoading(false);
+      setError(false);
       return;
     }
 
+    const conversationId = selectedConversationId;
     const controller = new AbortController();
     let cancelled = false;
 
     const loadMessages = async () => {
-      setState((current) => ({ ...current, loading: true, error: false }));
+      setLoading(true);
+      setError(false);
 
       try {
         const response = await axiosClient.get<Message[] | MessagesResponse>(
-          `/api/message/get/${selectedConversationId}`,
+          `/api/message/get/${conversationId}`,
           { signal: controller.signal }
         );
         if (cancelled) return;
 
         const data = response.data;
-        replaceMessages(
-          selectedConversationId,
-          Array.isArray(data) ? data : data.messages
-        );
-        setState((current) => ({ ...current, loading: false }));
-      } catch (error) {
+        replaceMessages(conversationId, Array.isArray(data) ? data : data.messages);
+        setLoading(false);
+      } catch (requestError) {
         if (!cancelled && !controller.signal.aborted) {
-          console.error("Failed to load messages", error);
-          setState((current) => ({ ...current, loading: false, error: true }));
+          console.error("Failed to load messages", requestError);
+          setLoading(false);
+          setError(true);
         }
       }
     };
@@ -66,13 +69,12 @@ export function useMessages(): UseMessagesResult {
       cancelled = true;
       controller.abort();
     };
-  }, [replaceMessages, selectedConversationId, state.retryKey]);
+  }, [replaceMessages, retryKey, selectedConversationId]);
 
   return {
     messages,
-    loading: state.loading,
-    error: state.error,
-    retry: () =>
-      setState((current) => ({ ...current, retryKey: current.retryKey + 1 })),
+    loading,
+    error,
+    retry: () => setRetryKey((current) => current + 1),
   };
 }
