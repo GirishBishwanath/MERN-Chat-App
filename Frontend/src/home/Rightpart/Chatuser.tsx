@@ -5,11 +5,18 @@ function Chatuser() {
   const selectedConversation = useConversationStore(
     (state) => state.selectedConversation
   );
-  const { onlineUsers } = useSocketContext();
+  const { onlineUsers, connectionStatus } = useSocketContext();
 
   if (!selectedConversation) return <div className="h-[12vh] bg-gray-700" />;
 
   const isOnline = onlineUsers.includes(selectedConversation._id);
+  const isConnected = connectionStatus === "connected";
+  const connectionLabel =
+    connectionStatus === "connected"
+      ? null
+      : connectionStatus === "connecting"
+        ? "Connecting..."
+        : "Reconnecting...";
 
   return (
     <div className="pl-5 pt-2 h-[12vh] flex items-center space-x-4 bg-gray-700 hover:bg-gray-600 duration-300">
@@ -30,13 +37,18 @@ function Chatuser() {
         <div className="flex items-center space-x-1 mt-1">
           <span
             className={`h-2 w-2 rounded-full ${
-              isOnline ? "bg-green-500" : "bg-gray-500"
+              isOnline && isConnected ? "bg-green-500" : "bg-gray-500"
             }`}
           />
           <span className="text-[10px] uppercase tracking-wider font-semibold text-gray-300">
-            {isOnline ? "Online" : "Offline"}
+            {isConnected && isOnline ? "Online" : "Offline"}
           </span>
         </div>
+        {connectionLabel && (
+          <span className="text-[10px] text-yellow-300 mt-1" role="status">
+            {connectionLabel}
+          </span>
+        )}
       </div>
     </div>
   );
