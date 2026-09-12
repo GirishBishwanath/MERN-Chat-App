@@ -13,34 +13,34 @@ export interface UseUsersResult {
 export function useUsers(): UseUsersResult {
   const users = useUserStore((state) => state.users);
   const setUsers = useUserStore((state) => state.setUsers);
-
-  const [state, setState] = useState({
-    loading: true,
-    error: false,
-    retryKey: 0,
-  });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const [retryKey, setRetryKey] = useState(0);
 
   useEffect(() => {
-    let cancelled = false;
     const controller = new AbortController();
+    let cancelled = false;
 
     const loadUsers = async () => {
-      setState((current) => ({ ...current, loading: true, error: false }));
+      setLoading(true);
+      setError(false);
 
       try {
         const response = await axiosClient.get<PublicUser[]>(
           "/api/user/allusers",
           { signal: controller.signal }
         );
-        if (!cancelled) {
-          setUsers(response.data);
-          setState((current) => ({ ...current, loading: false }));
-        }
-      } catch (error) {
-        if (!cancelled && !controller.signal.aborted) {
-          console.error("Failed to load users", error);
-          setState((current) => ({ ...current, loading: false, error: true }));
-        }
+
+        if (cancelled) return;
+
+        setUsers(response.data);
+        setLoading(false);
+      } catch (requestError) {
+        if (cancelled || controller.signal.aborted) return;
+
+        console.error("Failed to load users", requestError);
+        setLoading(false);
+        setError(true);
       }
     };
 
@@ -50,13 +50,12 @@ export function useUsers(): UseUsersResult {
       cancelled = true;
       controller.abort();
     };
-  }, [setUsers, state.retryKey]);
+  }, [retryKey, setUsers]);
 
   return {
     users,
-    loading: state.loading,
-    error: state.error,
-    retry: () =>
-      setState((current) => ({ ...current, retryKey: current.retryKey + 1 })),
+    loading,
+    error,
+    retry: () => setRetryKey((current) => current + 1),
   };
 }
