@@ -1,29 +1,33 @@
 import { useState, type FormEvent } from "react";
 import { FaSearch } from "react-icons/fa";
 import toast from "react-hot-toast";
-import useGetAllUsers from "../../context/useGetAllUsers";
-import useConversation from "../../statemanage/useConversation";
+import { useUsers } from "../../hooks/useUsers";
+import { useConversationStore } from "../../state/conversationStore";
 
 function Search() {
   const [search, setSearch] = useState("");
-  const { allUsers } = useGetAllUsers();
-  const { setSelectedConversation } = useConversation();
+  const { users } = useUsers();
+  const setSelectedConversation = useConversationStore(
+    (state) => state.setSelectedConversation
+  );
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+
     const query = search.trim().toLowerCase();
     if (!query) return;
 
-    const conversation = allUsers.find((user) =>
+    const conversation = users.find((user) =>
       user.fullname.toLowerCase().includes(query)
     );
 
-    if (conversation) {
-      setSelectedConversation(conversation);
-      setSearch("");
-    } else {
+    if (!conversation) {
       toast.error("User not found");
+      return;
     }
+
+    setSelectedConversation(conversation);
+    setSearch("");
   };
 
   return (

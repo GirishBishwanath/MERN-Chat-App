@@ -1,8 +1,26 @@
+import Loading from "../../components/Loading";
 import User from "./User";
-import useGetAllUsers from "../../context/useGetAllUsers";
+import { useUsers } from "../../hooks/useUsers";
 
 function Users() {
-  const { allUsers } = useGetAllUsers();
+  const { users, loading, error, retry } = useUsers();
+
+  if (loading) return <Loading />;
+
+  if (error) {
+    return (
+      <div className="px-6 py-8 text-center text-slate-300">
+        <p>Unable to load contacts.</p>
+        <button type="button" className="btn btn-sm mt-3" onClick={retry}>
+          Retry
+        </button>
+      </div>
+    );
+  }
+
+  if (users.length === 0) {
+    return <p className="px-6 py-8 text-center text-slate-400">No contacts yet.</p>;
+  }
 
   return (
     <div>
@@ -13,7 +31,7 @@ function Users() {
         className="py-2 flex-1 overflow-y-auto"
         style={{ maxHeight: "calc(84vh - 10vh)" }}
       >
-        {allUsers.map((user) => (
+        {users.map((user) => (
           <User key={user._id} user={user} />
         ))}
       </div>

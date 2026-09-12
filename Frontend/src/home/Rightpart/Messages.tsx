@@ -1,12 +1,12 @@
 import { useEffect, useRef } from "react";
 import MessageView from "./Message";
-import useGetMessage from "../../context/useGetMessage";
+import { useMessages } from "../../hooks/useMessages";
 import Loading from "../../components/Loading";
-import useGetSocketMessage from "../../context/useGetSocketMessage";
+import { useSocketMessages } from "../../hooks/useSocketMessages";
 
 function Messages() {
-  const { loading, messages } = useGetMessage();
-  useGetSocketMessage();
+  const { loading, error, messages, retry } = useMessages();
+  useSocketMessages();
   const lastMsgRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -17,22 +17,34 @@ function Messages() {
     return () => window.clearTimeout(timer);
   }, [messages]);
 
+  if (loading) return <Loading />;
+
+  if (error) {
+    return (
+      <div className="flex h-full items-center justify-center text-center text-slate-300">
+        <div>
+          <p>Unable to load messages.</p>
+          <button type="button" className="btn btn-sm mt-3" onClick={retry}>
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       className="flex-1 overflow-y-auto"
       style={{ minHeight: "calc(92vh - 8vh)" }}
+      aria-live="polite"
     >
-      {loading ? (
-        <Loading />
-      ) : (
-        messages.map((message) => (
-          <div key={message._id} ref={lastMsgRef}>
-            <MessageView message={message} />
-          </div>
-        ))
-      )}
+      {messages.map((message) => (
+        <div key={message._id} ref={lastMsgRef}>
+          <MessageView message={message} />
+        </div>
+      ))}
 
-      {!loading && messages.length === 0 && (
+      {messages.length === 0 && (
         <div>
           <p className="text-center mt-[20%]">Say! Hi to start the conversation</p>
         </div>

@@ -1,17 +1,24 @@
 import { useState, type FormEvent } from "react";
 import { IoSend } from "react-icons/io5";
-import useSendMessage from "../../context/useSendMessage";
+import toast from "react-hot-toast";
+import { useSendMessage } from "../../hooks/useSendMessage";
 
 function Typesend() {
   const [message, setMessage] = useState("");
-  const { sendMessages, loading } = useSendMessage();
+  const { sendMessage, loading } = useSendMessage();
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+
     if (!message.trim() || loading) return;
 
-    await sendMessages(message);
-    setMessage("");
+    const sent = await sendMessage(message);
+    if (sent) {
+      setMessage("");
+      return;
+    }
+
+    toast.error("Unable to send message");
   };
 
   return (
@@ -27,7 +34,11 @@ function Typesend() {
             className="border-[1px] border-gray-700 flex items-center w-full py-3 px-3 rounded-xl grow outline-none bg-slate-900 mt-1"
           />
         </div>
-        <button type="submit" disabled={loading || !message.trim()} aria-label="Send message">
+        <button
+          type="submit"
+          disabled={loading || !message.trim()}
+          aria-label="Send message"
+        >
           <IoSend className="text-3xl" />
         </button>
       </div>
