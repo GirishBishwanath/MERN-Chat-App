@@ -14,7 +14,7 @@ This roadmap is the version-controlled execution plan for evolving the chat appl
 | 3 | Backend Architecture / Error / Validation Foundation | Clear backend boundaries, validation, centralized errors, config validation, health/readiness/liveness | **Complete; 17/17 backend tests passed locally** |
 | 4 | TypeScript Migration | Strict TypeScript, domain types, DTOs, API/socket/event contracts | **In progress; backend foundation/auth slice migrated** |
 | 5 | Frontend Architecture / State Management | Deliberate UI, feature, server-state, client-state, API and realtime boundaries | **Complete; implementation and local verification complete** |
-| 6 | PostgreSQL Data Model Design | Relational schema, constraints, indexes, access patterns, cursor-pagination design | Pending |
+| 6 | PostgreSQL Data Model Design | Relational schema, constraints, indexes, access patterns, cursor-pagination design | **Complete; design documented and reviewed** |
 | 7 | Safe MongoDB → PostgreSQL Migration | PostgreSQL implementation, migrations, transactions, integrity checks, rollback strategy | Pending |
 | 8 | Production API / Message Pagination | Stable API contracts, authorization, bounded cursor pagination, consistent errors/statuses | Pending |
 | 9 | Authenticated Realtime / Socket Correctness | Server-authenticated Socket.IO, reconnect/multi-device correctness, deduplication | Pending |
