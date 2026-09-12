@@ -24,7 +24,7 @@ export function useMessages(): UseMessagesResult {
         ? state.messagesByConversation[selectedConversationId] ?? []
         : []
   );
-  const replaceMessages = useConversationStore((state) => state.replaceMessages);
+  const mergeMessages = useConversationStore((state) => state.mergeMessages);
   const [retryKey, setRetryKey] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
@@ -49,17 +49,18 @@ export function useMessages(): UseMessagesResult {
           `/api/message/get/${conversationId}`,
           { signal: controller.signal }
         );
+
         if (cancelled) return;
 
         const data = response.data;
-        replaceMessages(conversationId, Array.isArray(data) ? data : data.messages);
+        mergeMessages(conversationId, Array.isArray(data) ? data : data.messages);
         setLoading(false);
       } catch (requestError) {
-        if (!cancelled && !controller.signal.aborted) {
-          console.error("Failed to load messages", requestError);
-          setLoading(false);
-          setError(true);
-        }
+        if (cancelled || controller.signal.aborted) return;
+
+        console.error("Failed to load messages", requestError);
+        setLoading(false);
+        setError(true);
       }
     };
 
@@ -69,7 +70,7 @@ export function useMessages(): UseMessagesResult {
       cancelled = true;
       controller.abort();
     };
-  }, [replaceMessages, retryKey, selectedConversationId]);
+  }, [mergeMessages, retryKey, selectedConversationId]);
 
   return {
     messages,
