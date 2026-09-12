@@ -1,19 +1,21 @@
-import { useState, type FormEvent } from "react";
+import { FormEvent } from "react";
 import { FaSearch } from "react-icons/fa";
 import toast from "react-hot-toast";
 import { useUsers } from "../../hooks/useUsers";
 import { useConversationStore } from "../../state/conversationStore";
+import { useUiStore } from "../../state/uiStore";
 
 function Search() {
-  const [search, setSearch] = useState("");
   const { users } = useUsers();
+  const searchQuery = useUiStore((state) => state.searchQuery);
+  const setSearchQuery = useUiStore((state) => state.setSearchQuery);
   const setSelectedConversation = useConversationStore(
     (state) => state.setSelectedConversation
   );
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const query = search.trim().toLowerCase();
+    const query = searchQuery.trim().toLowerCase();
     if (!query) return;
 
     const conversation = users.find((user) =>
@@ -22,7 +24,7 @@ function Search() {
 
     if (conversation) {
       setSelectedConversation(conversation);
-      setSearch("");
+      setSearchQuery("");
     } else {
       toast.error("User not found");
     }
@@ -38,8 +40,8 @@ function Search() {
                 type="text"
                 className="grow outline-none bg-transparent"
                 placeholder="Search"
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
               />
             </label>
             <button type="submit" aria-label="Search users">
