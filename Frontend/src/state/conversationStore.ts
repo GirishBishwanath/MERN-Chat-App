@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import type { Message, PublicUser } from "../types/api";
 
-interface ConversationState {
+export interface ConversationState {
   selectedConversation: PublicUser | null;
   messagesByConversation: Record<string, Message[]>;
   setSelectedConversation: (conversation: PublicUser | null) => void;
@@ -9,9 +9,6 @@ interface ConversationState {
   appendMessage: (conversationId: string, message: Message) => void;
   clearMessages: (conversationId: string) => void;
 }
-
-const sameMessage = (left: Message, right: Message): boolean =>
-  left._id === right._id;
 
 export const useConversationStore = create<ConversationState>((set) => ({
   selectedConversation: null,
@@ -31,7 +28,7 @@ export const useConversationStore = create<ConversationState>((set) => ({
   appendMessage: (conversationId, message) =>
     set((state) => {
       const currentMessages = state.messagesByConversation[conversationId] ?? [];
-      if (currentMessages.some((current) => sameMessage(current, message))) {
+      if (currentMessages.some((current) => current._id === message._id)) {
         return state;
       }
 
