@@ -15,23 +15,22 @@ interface UseGetMessageResult {
 }
 
 const useGetMessage = (): UseGetMessageResult => {
-  const selectedConversation = useConversationStore(
-    (state) => state.selectedConversation
+  const selectedConversationId = useConversationStore(
+    (state) => state.selectedConversation?._id
   );
   const messages = useConversationStore(
     (state) =>
-      selectedConversation?._id
-        ? state.messagesByConversation[selectedConversation._id] ?? []
+      selectedConversationId
+        ? state.messagesByConversation[selectedConversationId] ?? []
         : []
   );
   const replaceMessages = useConversationStore((state) => state.replaceMessages);
-  const clearMessages = useConversationStore((state) => state.clearMessages);
   const [state, setState] = useState({ loading: false, error: false, retryKey: 0 });
 
   useEffect(() => {
-    const conversationId = selectedConversation?._id;
+    const conversationId = selectedConversationId;
     if (!conversationId) {
-      setState({ loading: false, error: false, retryKey: state.retryKey });
+      setState((current) => ({ ...current, loading: false, error: false }));
       return;
     }
 
@@ -64,7 +63,7 @@ const useGetMessage = (): UseGetMessageResult => {
       cancelled = true;
       controller.abort();
     };
-  }, [replaceMessages, selectedConversation?._id, state.retryKey]);
+  }, [replaceMessages, selectedConversationId, state.retryKey]);
 
   return {
     loading: state.loading,
