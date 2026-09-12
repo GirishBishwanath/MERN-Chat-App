@@ -1,7 +1,8 @@
 import { useForm } from "react-hook-form";
 import { Link } from "react-router-dom";
 import toast from "react-hot-toast";
-import axios from "../utils/axiosConfig";
+import axiosClient from "../utils/axiosConfig";
+import { isAxiosError } from "axios";
 import { useAuth } from "../context/AuthProvider";
 import type { ApiErrorResponse, AuthResponse } from "../types/api";
 
@@ -20,11 +21,11 @@ function Login() {
 
   const onSubmit = async (data: LoginForm): Promise<void> => {
     try {
-      const response = await axios.post<AuthResponse>("/api/user/login", data);
+      const response = await axiosClient.post<AuthResponse>("/api/user/login", data);
       setAuthUser(response.data.user);
       toast.success("Login successful");
     } catch (error: unknown) {
-      const message = axios.isAxiosError<ApiErrorResponse>(error)
+      const message = isAxiosError<ApiErrorResponse>(error)
         ? error.response?.data?.error
         : undefined;
       toast.error(message || "Unable to log in");
