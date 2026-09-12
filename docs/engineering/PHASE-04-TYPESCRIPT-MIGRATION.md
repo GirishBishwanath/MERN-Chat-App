@@ -2,7 +2,7 @@
 
 ## Status
 
-In progress. Source migration is substantially complete; final verification remains blocked until the declared dependencies can be installed in an environment with npm registry access.
+Implementation complete. Final verification remains blocked until the declared dependencies can be installed in an environment with npm registry access.
 
 ## Repository baseline
 
@@ -23,6 +23,7 @@ The migration established:
 - typed user and chat persistence/service/controller boundaries
 - typed Socket.IO event payloads
 - typed frontend API, authentication, realtime, component, hook, and client-state boundaries
+- TypeScript-aware frontend lint configuration
 
 The migration was performed in reviewable slices, preserving the existing application architecture instead of introducing a new framework or ORM merely for TypeScript.
 
@@ -42,10 +43,11 @@ The migration order was:
 8. frontend state and UI modules
 9. removal of duplicate JavaScript source modules
 10. strict TypeScript-only source configuration
+11. TypeScript-aware frontend lint configuration
 
 ## Dependency strategy
 
-Backend development dependencies declare TypeScript, `tsx`, Node/Express/HTTP type packages, and JSON Web Token type definitions. Frontend development dependencies declare TypeScript and Node type packages. The current agent environment cannot reach the npm registry, so the backend and frontend lockfiles have deliberately not been fabricated or hand-edited. The branch therefore requires dependency installation before it can be fully verified with the new TypeScript scripts.
+Backend development dependencies declare TypeScript, `tsx`, Node/Express/HTTP type packages, and JSON Web Token type definitions. Frontend development dependencies declare TypeScript, Node type packages, and the TypeScript ESLint parser/plugin. The current agent environment cannot reach the npm registry, so the backend and frontend lockfiles have deliberately not been fabricated or hand-edited. The branch therefore requires dependency installation before it can be fully verified with the new TypeScript scripts.
 
 No runtime framework or ORM was introduced for TypeScript itself.
 
@@ -57,6 +59,7 @@ No runtime framework or ORM was introduced for TypeScript itself.
 - `Backend/index.ts`
 - `Backend/config/env.ts`
 - `Backend/utils/logger.ts`
+- `Backend/routes/health.route.ts`
 - `Frontend/tsconfig.json`
 - `Frontend/vite.config.ts`
 - `Frontend/src/vite-env.d.ts`
@@ -139,11 +142,11 @@ Persistence documents are not treated as frontend contracts. Where the realtime 
 
 The next shared-contract step should consolidate these DTOs so frontend and backend do not independently redefine the same wire shapes, if that proves useful after the database/API design phases.
 
-## Frontend migration policy
+## Frontend linting
 
-`Frontend/tsconfig.json` uses `strict: true`, `moduleResolution: Bundler`, `isolatedModules`, and `noEmit`. `allowJs` is disabled because application source migration is complete.
+Frontend ESLint now uses `@typescript-eslint/parser` and `@typescript-eslint/eslint-plugin`, and the lint script includes JavaScript, JSX, TypeScript, and TSX source files. The core `no-unused-vars` rule is disabled in favor of the TypeScript-aware equivalent.
 
-Frontend ESLint still targets JavaScript/JSX only. TypeScript-aware ESLint should be introduced with the appropriate parser/plugin dependencies rather than pretending the existing ESLint parser can validate TypeScript. This is a dependency/tooling follow-up, not a reason to weaken TypeScript strictness.
+The dependency versions are intentionally pinned to the ESLint 8-compatible 7.x TypeScript ESLint line. Lockfile regeneration remains pending because npm registry access is unavailable in the current agent environment.
 
 ## Constraints
 
@@ -167,6 +170,6 @@ For each migration slice:
 
 ## Verification status
 
-The TypeScript migration branch has not yet been locally typechecked or built by the agent because the environment cannot reach the npm registry to install the newly declared dependencies. No typecheck/build/test success is being claimed.
+The TypeScript migration branch has not yet been locally typechecked, linted, built, or tested by the agent because the environment cannot reach the npm registry to install the newly declared dependencies. No typecheck/build/test/lint success is being claimed.
 
 The known Phase 03 baseline remains the last verified backend result: 17/17 tests passed locally on `main` before this migration branch.
