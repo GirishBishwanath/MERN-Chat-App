@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import useConversation from "../statemanage/useConversation";
-import axios from "../utils/axiosConfig";
+import axiosClient from "../utils/axiosConfig";
+import { useConversationStore } from "../state/conversationStore";
 import type { Message } from "../types/api";
 
 interface MessagesResponse {
@@ -9,46 +9,69 @@ interface MessagesResponse {
 
 interface UseGetMessageResult {
   loading: boolean;
+  error: boolean;
+  retry: () => void;
   messages: Message[];
 }
 
 const useGetMessage = (): UseGetMessageResult => {
-  const [loading, setLoading] = useState(false);
-  const { messages, setMessage, selectedConversation } = useConversation();
+  const selectedConversation = useConversationStore(
+    (state) => state.selectedConversation
+  );
+  const messages = useConversationStore(
+    (state) =>
+      selectedConversation?._id
+        ? state.messagesByConversation[selectedConversation._id] ?? []
+        : []
+  );
+  const replaceMessages = useConversationStore((state) => state.replaceMessages);
+  const clearMessages = useConversationStore((state) => state.clearMessages);
+  const [state, setState] = useState({ loading: false, error: false, retryKey: 0 });
 
   useEffect(() => {
-    let mounted = true;
+    const conversationId = selectedConversation?._id;
+    if (!conversationId) {
+      setState({ loading: false, error: false, retryKey: state.retryKey });
+      return;
+    }
+
+    const controller = new AbortController();
+    let cancelled = false;
 
     const getMessages = async () => {
-      if (!selectedConversation?._id) {
-        setMessage([]);
-        return;
-      }
-
-      setLoading(true);
+      setState((current) => ({ ...current, loading: true, error: false }));
       try {
-        const response = await axios.get<Message[] | MessagesResponse>(
-          `/api/message/get/${selectedConversation._id}`
+        const response = await axiosClient.get<Message[] | MessagesResponse>(
+          `/api/message/get/${conversationId}`,
+          { signal: controller.signal }
         );
-        if (!mounted) return;
+        if (cancelled) return;
 
         const data = response.data;
-        setMessage(Array.isArray(data) ? data : data.messages);
+        replaceMessages(conversationId, Array.isArray(data) ? data : data.messages);
+        setState((current) => ({ ...current, loading: false }));
       } catch (error) {
-        if (mounted) console.error("Error in getting messages", error);
-      } finally {
-        if (mounted) setLoading(false);
+        if (!cancelled && !controller.signal.aborted) {
+          console.error("Failed to load messages", error);
+          setState((current) => ({ ...current, loading: false, error: true }));
+        }
       }
     };
 
     void getMessages();
 
     return () => {
-      mounted = false;
+      cancelled = true;
+      controller.abort();
     };
-  }, [selectedConversation, setMessage]);
+  }, [replaceMessages, selectedConversation?._id, state.retryKey]);
 
-  return { loading, messages };
+  return {
+    loading: state.loading,
+    error: state.error,
+    retry: () => setState((current) => ({ ...current, retryKey: current.retryKey + 1 })),
+    messages,
+  };
 };
 
 export default useGetMessage;
