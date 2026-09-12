@@ -1,29 +1,37 @@
 import { useEffect } from "react";
 import sound from "../assets/notification.mp3";
 import { useSocketContext } from "./SocketContext";
-import useConversation from "../statemanage/useConversation";
+import { useConversationStore } from "../state/conversationStore";
 import type { Message } from "../types/api";
 
 const useGetSocketMessage = (): void => {
   const { socket } = useSocketContext();
-  const setMessage = useConversation((state) => state.setMessage);
+  const selectedConversationId = useConversationStore(
+    (state) => state.selectedConversation?._id
+  );
+  const appendMessage = useConversationStore((state) => state.appendMessage);
 
   useEffect(() => {
     if (!socket) return;
 
     const handleNewMessage = (newMessage: Message) => {
-      setMessage((currentMessages) => [...currentMessages, newMessage]);
+      const conversationId =
+        newMessage.senderId === selectedConversationId
+          ? newMessage.senderId
+          : newMessage.receiverId === selectedConversationId
+            ? newMessage.receiverId
+            : undefined;
+
+      if (!conversationId) return;
+
+      appendMessage(conversationId, newMessage);
       const notification = new Audio(sound);
-      void notification.play().catch(() => {
-        // Browsers can block autoplay until the user has interacted with the page.
-      });
+      void notification.play().catch(() => undefined);
     };
 
     socket.on("newMessage", handleNewMessage);
-    return () => {
-      socket.off("newMessage", handleNewMessage);
-    };
-  }, [socket, setMessage]);
+    return () => socket.off("newMessage", handleNewMessage);
+  }, [appendMessage, selectedConversationId, socket]);
 };
 
 export default useGetSocketMessage;
