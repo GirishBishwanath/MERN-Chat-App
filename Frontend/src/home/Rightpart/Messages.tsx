@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import MessageView from "./Message";
 import { useMessages } from "../../hooks/useMessages";
 import Loading from "../../components/Loading";
-import useSocketMessages from "../../context/useGetSocketMessage";
+import { useSocketMessages } from "../../hooks/useSocketMessages";
 
 function Messages() {
   const { loading, error, messages, retry } = useMessages();
