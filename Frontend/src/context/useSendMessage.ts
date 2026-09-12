@@ -1,36 +1,47 @@
 import { useState } from "react";
-import useConversation from "../statemanage/useConversation";
-import axios from "../utils/axiosConfig";
+import axiosClient from "../utils/axiosConfig";
+import { useConversationStore } from "../state/conversationStore";
 import type { Message, SendMessageRequest } from "../types/api";
 
 interface UseSendMessageResult {
   loading: boolean;
-  sendMessages: (message: string) => Promise<void>;
+  error: boolean;
+  sendMessages: (message: string) => Promise<boolean>;
 }
 
 const useSendMessage = (): UseSendMessageResult => {
+  const selectedConversationId = useConversationStore(
+    (state) => state.selectedConversation?._id
+  );
+  const appendMessage = useConversationStore((state) => state.appendMessage);
   const [loading, setLoading] = useState(false);
-  const { setMessage, selectedConversation } = useConversation();
+  const [error, setError] = useState(false);
 
-  const sendMessages = async (message: string): Promise<void> => {
-    if (!selectedConversation?._id || !message.trim()) return;
+  const sendMessages = async (message: string): Promise<boolean> => {
+    const conversationId = selectedConversationId;
+    const trimmedMessage = message.trim();
+    if (!conversationId || !trimmedMessage || loading) return false;
 
     setLoading(true);
+    setError(false);
     try {
-      const response = await axios.post<
+      const response = await axiosClient.post<
         Message,
         { data: Message },
         SendMessageRequest
-      >(`/api/message/send/${selectedConversation._id}`, { message });
-      setMessage((currentMessages) => [...currentMessages, response.data]);
-    } catch (error) {
-      console.error("Error in send messages", error);
+      >(`/api/message/send/${conversationId}`, { message: trimmedMessage });
+      appendMessage(conversationId, response.data);
+      return true;
+    } catch (requestError) {
+      console.error("Failed to send message", requestError);
+      setError(true);
+      return false;
     } finally {
       setLoading(false);
     }
   };
 
-  return { loading, sendMessages };
+  return { loading, error, sendMessages };
 };
 
 export default useSendMessage;
