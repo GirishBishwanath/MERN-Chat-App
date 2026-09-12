@@ -3,7 +3,8 @@ import { Link } from "react-router-dom";
 import toast from "react-hot-toast";
 import axios from "../utils/axiosConfig";
 import { useAuth } from "../context/AuthProvider";
-import type { AuthResponse } from "../types/api";
+import type { AuthResponse, ApiErrorResponse } from "../types/api";
+import { isAxiosError } from "axios";
 
 interface SignupForm {
   fullname: string;
@@ -28,8 +29,8 @@ function Signup() {
       const response = await axios.post<AuthResponse>("/api/user/signup", data);
       setAuthUser(response.data.user);
       toast.success("Signup successful");
-    } catch (error) {
-      const message = axios.isAxiosError(error)
+    } catch (error: unknown) {
+      const message = isAxiosError<ApiErrorResponse>(error)
         ? error.response?.data?.error
         : undefined;
       toast.error(message || "Unable to create account");
