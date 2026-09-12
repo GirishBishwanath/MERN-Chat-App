@@ -4,29 +4,36 @@ import { useSocketContext } from "./SocketContext";
 import { useConversationStore } from "../state/conversationStore";
 import type { Message } from "../types/api";
 
-const useGetSocketMessage = (): void => {
+const useSocketMessages = (): void => {
   const { socket } = useSocketContext();
   const appendMessage = useConversationStore((state) => state.appendMessage);
 
   useEffect(() => {
     if (!socket) return;
 
-    const handleNewMessage = (newMessage: Message) => {
-      const conversationId = useConversationStore.getState().selectedConversation?._id;
-      if (!conversationId) return;
+    const handleNewMessage = (message: Message) => {
+      const selectedUserId =
+        useConversationStore.getState().selectedConversation?._id;
 
-      const belongsToSelectedConversation =
-        newMessage.senderId === conversationId || newMessage.receiverId === conversationId;
-      if (!belongsToSelectedConversation) return;
+      if (!selectedUserId) return;
 
-      appendMessage(conversationId, newMessage);
+      const isForSelectedConversation =
+        message.senderId === selectedUserId || message.receiverId === selectedUserId;
+
+      if (!isForSelectedConversation) return;
+
+      appendMessage(selectedUserId, message);
+
       const notification = new Audio(sound);
       void notification.play().catch(() => undefined);
     };
 
     socket.on("newMessage", handleNewMessage);
-    return () => socket.off("newMessage", handleNewMessage);
+
+    return () => {
+      socket.off("newMessage", handleNewMessage);
+    };
   }, [appendMessage, socket]);
 };
 
-export default useGetSocketMessage;
+export default useSocketMessages;
