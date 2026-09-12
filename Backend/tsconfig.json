@@ -6,7 +6,7 @@
     "rootDir": ".",
     "outDir": "dist",
     "strict": true,
-    "allowJs": true,
+    "allowJs": false,
     "checkJs": false,
     "declaration": true,
     "sourceMap": true,
@@ -15,10 +15,7 @@
     "skipLibCheck": true,
     "noEmitOnError": true
   },
-  "include": [
-    "**/*.ts",
-    "**/*.js"
-  ],
+  "include": ["**/*.ts"],
   "exclude": [
     "dist",
     "node_modules",
