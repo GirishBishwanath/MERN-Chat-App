@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import axiosClient from "../utils/axiosConfig";
 import { useUserStore } from "../state/userStore";
 import type { PublicUser } from "../types/api";
