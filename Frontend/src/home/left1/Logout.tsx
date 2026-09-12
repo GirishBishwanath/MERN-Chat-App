@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { TbLogout2 } from "react-icons/tb";
-import axios from "../../utils/axiosConfig";
+import axiosClient from "../../utils/axiosConfig";
+import { isAxiosError } from "axios";
 import { useAuth } from "../../context/AuthProvider";
 import toast from "react-hot-toast";
 import type { ApiErrorResponse } from "../../types/api";
@@ -12,11 +13,11 @@ function Logout() {
   const handleLogout = async (): Promise<void> => {
     setLoading(true);
     try {
-      await axios.post("/api/user/logout");
+      await axiosClient.post("/api/user/logout");
       setAuthUser(null);
       toast.success("Logged out successfully");
-    } catch (error) {
-      const message = axios.isAxiosError<ApiErrorResponse>(error)
+    } catch (error: unknown) {
+      const message = isAxiosError<ApiErrorResponse>(error)
         ? error.response?.data?.error
         : undefined;
       toast.error(message || "Error in logging out");
