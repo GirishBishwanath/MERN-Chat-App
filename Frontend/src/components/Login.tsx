@@ -23,7 +23,7 @@ function Login() {
       const response = await axios.post<AuthResponse>("/api/user/login", data);
       setAuthUser(response.data.user);
       toast.success("Login successful");
-    } catch (error) {
+    } catch (error: unknown) {
       const message = axios.isAxiosError<ApiErrorResponse>(error)
         ? error.response?.data?.error
         : undefined;
