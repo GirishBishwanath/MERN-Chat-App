@@ -9,17 +9,10 @@ import { io, type Socket } from "socket.io-client";
 import { useAuth } from "./AuthProvider";
 import type {
   ClientToServerEvents,
-  InterServerEvents,
   ServerToClientEvents,
-  SocketData,
 } from "../types/socket";
 
-export type AppSocket = Socket<
-  ServerToClientEvents,
-  ClientToServerEvents,
-  InterServerEvents,
-  SocketData
->;
+export type AppSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
 
 interface SocketContextValue {
   socket: AppSocket | null;
@@ -47,7 +40,7 @@ export function SocketProvider({ children }: SocketProviderProps) {
 
   useEffect(() => {
     if (!authUser) {
-      setSocket((currentSocket) => {
+      setSocket((currentSocket: AppSocket | null) => {
         currentSocket?.close();
         return null;
       });
@@ -72,7 +65,7 @@ export function SocketProvider({ children }: SocketProviderProps) {
     return () => {
       nextSocket.off("getOnlineUsers", handleOnlineUsers);
       nextSocket.close();
-      setSocket((currentSocket) =>
+      setSocket((currentSocket: AppSocket | null) =>
         currentSocket === nextSocket ? null : currentSocket
       );
     };
