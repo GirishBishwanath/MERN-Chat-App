@@ -1,10 +1,10 @@
 import { useForm } from "react-hook-form";
 import { Link } from "react-router-dom";
 import toast from "react-hot-toast";
-import axios from "../utils/axiosConfig";
-import { useAuth } from "../context/AuthProvider";
-import type { AuthResponse, ApiErrorResponse } from "../types/api";
+import axiosClient from "../utils/axiosConfig";
 import { isAxiosError } from "axios";
+import { useAuth } from "../context/AuthProvider";
+import type { ApiErrorResponse, AuthResponse } from "../types/api";
 
 interface SignupForm {
   fullname: string;
@@ -26,7 +26,7 @@ function Signup() {
 
   const onSubmit = async (data: SignupForm): Promise<void> => {
     try {
-      const response = await axios.post<AuthResponse>("/api/user/signup", data);
+      const response = await axiosClient.post<AuthResponse>("/api/user/signup", data);
       setAuthUser(response.data.user);
       toast.success("Signup successful");
     } catch (error: unknown) {
