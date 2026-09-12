@@ -35,6 +35,8 @@ Use the following relational entities:
 
 A direct conversation has exactly two members in the current product model. The membership relationship is normalized into `conversation_members` rather than storing user IDs in an array column.
 
+For direct conversations, `conversations` also stores the two member IDs in canonical order. This small amount of deliberate denormalization makes the "one conversation per unordered pair" invariant enforceable with a normal unique constraint while `conversation_members` remains the normalized membership and authorization relationship.
+
 Messages belong to a conversation and reference their sender. The receiver is derivable from the two-member conversation and therefore is not stored as a second relationship that can drift from membership state.
 
 Refresh sessions remain a separate table because they are independently created, revoked, expired, and queried by user.
@@ -45,12 +47,12 @@ Refresh sessions remain a separate table because they are independently created,
 
 ```sql
 CREATE TABLE users (
-    id          UUID PRIMARY KEY,
-    fullname    VARCHAR(100) NOT NULL,
-    email       VARCHAR(320) NOT NULL UNIQUE,
+    id            UUID PRIMARY KEY,
+    fullname      VARCHAR(100) NOT NULL,
+    email         VARCHAR(320) NOT NULL UNIQUE,
     password_hash TEXT NOT NULL,
-    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 ```
 
@@ -65,13 +67,29 @@ Notes:
 
 ```sql
 CREATE TABLE conversations (
-    id         UUID PRIMARY KEY,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    id           UUID PRIMARY KEY,
+    member_a_id  UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    member_b_id  UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT conversations_members_distinct
+        CHECK (member_a_id <> member_b_id),
+    CONSTRAINT conversations_members_canonical
+        CHECK (member_a_id < member_b_id),
+    CONSTRAINT conversations_direct_pair_unique
+        UNIQUE (member_a_id, member_b_id)
 );
 ```
 
 `updated_at` represents conversation activity and can later support conversation-list ordering without deriving that value from an unbounded message collection.
+
+The canonical pair is always stored as the lower UUID in `member_a_id` and the higher UUID in `member_b_id`. The uniqueness constraint therefore represents an unordered user pair deterministically:
+
+```text
+(A, B) == (B, A)
+```
+
+The application does not need a separate "conversation already exists" record to establish uniqueness under concurrent requests; the database constraint is the final authority.
 
 ### `conversation_members`
 
@@ -84,7 +102,7 @@ CREATE TABLE conversation_members (
 );
 ```
 
-Required access indexes:
+Required access index:
 
 ```sql
 CREATE INDEX conversation_members_user_id_idx
@@ -93,7 +111,7 @@ CREATE INDEX conversation_members_user_id_idx
 
 The composite primary key prevents duplicate membership rows.
 
-For the current direct-message product, application/domain logic must enforce exactly two members. PostgreSQL does not have a simple row-level `CHECK` constraint that enforces a two-row cardinality across this table, so the invariant belongs in the transaction that creates a conversation. Phase 07 must preserve that invariant when the migration is implemented.
+The current product only supports direct conversations, so each conversation must have exactly two corresponding membership rows, matching `member_a_id` and `member_b_id`. A row-level `CHECK` constraint cannot enforce that cross-row cardinality by itself; Phase 07 must create the conversation and its two membership rows transactionally and validate that both canonical members are inserted.
 
 ### `messages`
 
@@ -147,55 +165,50 @@ PostgreSQL itself does not provide MongoDB TTL-index semantics, so session expir
 
 ## Direct conversation lookup
 
-The current MongoDB lookup searches for a conversation whose member array contains both users. In PostgreSQL, the equivalent access pattern must avoid scanning all memberships.
+The current MongoDB lookup searches for a conversation whose member array contains both users. In PostgreSQL, the primary direct-conversation identity is the canonical pair on `conversations`.
 
-The design uses the indexed membership table for lookup and keeps the operation transactional.
-
-For two known user IDs, the logical query is:
+The caller normalizes the two UUIDs into `(member_a_id, member_b_id)` and performs a direct indexed lookup:
 
 ```sql
-SELECT c.id
-FROM conversations AS c
-JOIN conversation_members AS cm
-    ON cm.conversation_id = c.id
-WHERE cm.user_id IN ($1, $2)
-GROUP BY c.id
-HAVING COUNT(DISTINCT cm.user_id) = 2
-   AND COUNT(*) = 2;
+SELECT id
+FROM conversations
+WHERE member_a_id = $1
+  AND member_b_id = $2;
 ```
 
-This query identifies a direct conversation containing exactly the two requested members in the current two-person model.
+Because the pair is canonicalized before the query, the lookup is symmetric for the two users and the unique constraint guarantees at most one matching conversation.
 
-During Phase 07, conversation creation and this lookup should execute inside a transaction so concurrent sends cannot create two conversations for the same pair.
+The membership table remains useful for authorization and member retrieval:
 
-## Stronger uniqueness for direct conversations
+```sql
+SELECT user_id
+FROM conversation_members
+WHERE conversation_id = $1;
+```
 
-A plain membership table cannot express "there is exactly one conversation for this unordered pair of users" with a simple unique constraint.
+Phase 07 must populate both the canonical pair columns and the two membership rows in the same transaction.
 
-The preferred Phase 07 implementation is to introduce canonical pair columns on `conversations` for direct conversations:
+## Direct conversation creation and concurrency
+
+The critical invariant is:
 
 ```text
-member_a_id
-member_b_id
+one direct conversation per unordered pair of users
 ```
 
-with the invariant:
-
-```text
-member_a_id < member_b_id
-```
-
-and a unique constraint:
+The preferred implementation is to canonicalize the pair in application code and rely on:
 
 ```sql
 UNIQUE (member_a_id, member_b_id)
 ```
 
-This makes the direct-message identity database-enforceable and removes a race where two concurrent requests could both observe "no conversation" and create separate conversations.
+as the database-level guard.
 
-The normalized `conversation_members` table remains the source for membership joins and authorization. The canonical pair columns exist specifically to make the direct-conversation uniqueness invariant explicit and enforceable.
+This is stronger than a read-then-insert sequence on `conversation_members` alone because two concurrent requests can both observe no existing conversation. The unique constraint turns that race into a deterministic database conflict that the service can handle.
 
-This is a deliberate tradeoff: two small redundant UUID columns simplify a critical uniqueness constraint and make the concurrency behavior much easier to reason about than attempting to derive pair uniqueness from an arbitrary set of membership rows.
+The normalized `conversation_members` table remains the source for member-based joins and authorization. The pair columns exist specifically to enforce direct-conversation identity.
+
+This is a deliberate tradeoff: two redundant UUID columns are small and stable, while they make a critical concurrency invariant easy to enforce and reason about.
 
 ## Message model decision
 
@@ -241,7 +254,7 @@ When the product later supports group conversations, the API/domain model should
 | Register by email | `users.email` unique |
 | Get user by ID | `users.id` primary key |
 | List users except current user | `users.id` primary key; add ordering index later if required |
-| Find conversation by user pair | `conversations` canonical pair unique constraint + `conversation_members_user_id_idx` |
+| Find conversation by user pair | `conversations(member_a_id, member_b_id)` unique |
 | Get conversation members | `conversation_members` primary key |
 | Send message | `messages.conversation_id` foreign key + conversation membership lookup |
 | Read message history | `messages_conversation_created_at_idx` |
@@ -257,7 +270,9 @@ Phase 07 must make these operations transactional:
 ```text
 BEGIN
   verify receiver exists
-  find or create canonical conversation pair
+  canonicalize the two user IDs
+  find or create the unique direct conversation pair
+  ensure both membership rows exist
   insert message
   update conversation.updated_at
 COMMIT
@@ -279,6 +294,7 @@ The PostgreSQL implementation must preserve these invariants:
 - conversation membership must reference existing users and conversations
 - the same user cannot be added twice to one conversation
 - a direct conversation contains exactly two distinct members
+- `member_a_id` and `member_b_id` are distinct and stored in canonical order
 - there is at most one direct conversation for a given unordered pair of users
 - a session token hash is unique
 - a session always belongs to an existing user
@@ -289,11 +305,11 @@ The PostgreSQL implementation must preserve these invariants:
 The existing MongoDB conversation document contains a potentially unbounded `messages` array. Migration must therefore be performed as separate relational writes:
 
 1. migrate users
-2. create one PostgreSQL conversation row for each MongoDB conversation
+2. create one PostgreSQL conversation row for each MongoDB conversation, deriving canonical member IDs
 3. create two membership rows for each direct conversation
 4. migrate each message as an independent row linked to its conversation
 5. migrate session rows while preserving token hashes and expiration timestamps
-6. validate counts and relationship integrity before switching reads/writes
+6. validate counts, canonical-pair uniqueness, and relationship integrity before switching reads/writes
 
 No destructive MongoDB operation belongs in Phase 06.
 
