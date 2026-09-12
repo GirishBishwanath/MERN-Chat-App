@@ -1,8 +1,7 @@
 export interface PublicUser {
   _id: string;
-  fullName: string;
+  fullname: string;
   email: string;
-  profilePhoto?: string;
 }
 
 export interface Message {
