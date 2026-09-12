@@ -1,6 +1,6 @@
 import type { ErrorRequestHandler, NextFunction, Request, Response } from "express";
 import mongoose from "mongoose";
-import { JsonWebTokenError, TokenExpiredError } from "jsonwebtoken";
+import jwt from "jsonwebtoken";
 
 import { AppError } from "../errors/AppError.js";
 import { ERROR_CODES } from "../errors/errorCodes.js";
@@ -51,7 +51,7 @@ export const errorHandler: ErrorRequestHandler = (
     );
   } else if (error instanceof Error && error.message === "CORS policy violation") {
     appError = new AppError("Origin is not allowed", 403, ERROR_CODES.FORBIDDEN);
-  } else if (error instanceof TokenExpiredError || error instanceof JsonWebTokenError) {
+  } else if (error instanceof jwt.TokenExpiredError || error instanceof jwt.JsonWebTokenError) {
     appError = new AppError("Session expired", 401, ERROR_CODES.SESSION_EXPIRED);
   } else if (error instanceof mongoose.Error.ValidationError) {
     appError = new AppError(
