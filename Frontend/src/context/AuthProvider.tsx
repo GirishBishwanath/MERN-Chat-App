@@ -7,7 +7,8 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import axios from "../utils/axiosConfig";
+import axiosClient from "../utils/axiosConfig";
+import { isAxiosError } from "axios";
 import type { AuthResponse, AuthStatus, PublicUser } from "../types/api";
 
 interface AuthContextValue {
@@ -36,12 +37,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
     const restoreSession = async () => {
       try {
-        const response = await axios.get<AuthResponse>("/api/user/me");
+        const response = await axiosClient.get<AuthResponse>("/api/user/me");
         if (mounted) setAuthUser(response.data.user);
-      } catch (error) {
-        if (axios.isAxiosError(error) && error.response?.status === 401) {
+      } catch (error: unknown) {
+        if (isAxiosError(error) && error.response?.status === 401) {
           try {
-            const refreshResponse = await axios.post<AuthResponse>(
+            const refreshResponse = await axiosClient.post<AuthResponse>(
               "/api/user/refresh"
             );
             if (mounted) setAuthUser(refreshResponse.data.user);
