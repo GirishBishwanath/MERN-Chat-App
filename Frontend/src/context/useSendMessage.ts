@@ -17,10 +17,11 @@ const useSendMessage = (): UseSendMessageResult => {
 
     setLoading(true);
     try {
-      const response = await axios.post<Message, { data: Message }, SendMessageRequest>(
-        `/api/message/send/${selectedConversation._id}`,
-        { message }
-      );
+      const response = await axios.post<
+        Message,
+        { data: Message },
+        SendMessageRequest
+      >(`/api/message/send/${selectedConversation._id}`, { message });
       setMessage((currentMessages) => [...currentMessages, response.data]);
     } catch (error) {
       console.error("Error in send messages", error);
