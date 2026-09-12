@@ -2,11 +2,11 @@ import { useEffect, useRef } from "react";
 import MessageView from "./Message";
 import { useMessages } from "../../hooks/useMessages";
 import Loading from "../../components/Loading";
-import useGetSocketMessage from "../../context/useGetSocketMessage";
+import useSocketMessages from "../../context/useGetSocketMessage";
 
 function Messages() {
   const { loading, error, messages, retry } = useMessages();
-  useGetSocketMessage();
+  useSocketMessages();
   const lastMsgRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
