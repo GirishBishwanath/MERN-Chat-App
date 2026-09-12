@@ -1,4 +1,4 @@
-import useConversation from "../../statemanage/useConversation";
+import { useConversationStore } from "../../state/conversationStore";
 import { useSocketContext } from "../../context/SocketContext";
 import type { PublicUser } from "../../types/api";
 
@@ -7,14 +7,20 @@ interface UserProps {
 }
 
 function User({ user }: UserProps) {
-  const { selectedConversation, setSelectedConversation } = useConversation();
-  const isSelected = selectedConversation?._id === user._id;
+  const selectedConversation = useConversationStore(
+    (state) => state.selectedConversation
+  );
+  const setSelectedConversation = useConversationStore(
+    (state) => state.setSelectedConversation
+  );
   const { onlineUsers } = useSocketContext();
+  const isSelected = selectedConversation?._id === user._id;
   const isOnline = onlineUsers.includes(user._id);
 
   return (
-    <div
-      className={`duration-300 cursor-pointer ${
+    <button
+      type="button"
+      className={`w-full text-left duration-300 cursor-pointer ${
         isSelected ? "bg-slate-700" : "hover:bg-slate-600"
       }`}
       onClick={() => setSelectedConversation(user)}
@@ -34,7 +40,7 @@ function User({ user }: UserProps) {
           <p className="text-sm text-slate-400 truncate">{user.email}</p>
         </div>
       </div>
-    </div>
+    </button>
   );
 }
 
