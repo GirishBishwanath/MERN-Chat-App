@@ -1,17 +1,22 @@
 import { useState, type FormEvent } from "react";
 import { IoSend } from "react-icons/io5";
+import toast from "react-hot-toast";
 import useSendMessage from "../../context/useSendMessage";
 
 function Typesend() {
   const [message, setMessage] = useState("");
-  const { sendMessages, loading } = useSendMessage();
+  const { sendMessages, loading, error } = useSendMessage();
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!message.trim() || loading) return;
 
-    await sendMessages(message);
-    setMessage("");
+    const sent = await sendMessages(message);
+    if (sent) {
+      setMessage("");
+    } else if (error) {
+      toast.error("Unable to send message");
+    }
   };
 
   return (
