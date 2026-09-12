@@ -25,6 +25,8 @@ The first backend slice establishes:
 - typed user and chat persistence/service/controller boundaries
 - typed Socket.IO event payloads
 
+The frontend slice now establishes the equivalent high-value client boundaries while retaining legacy UI modules for incremental conversion.
+
 Existing JavaScript remains where it is not yet part of the migrated boundary. This keeps the diff reviewable while allowing the highest-value contracts to become explicit first.
 
 ## Why this approach
@@ -46,7 +48,7 @@ The migration order is:
 
 ## Dependency strategy
 
-Backend development dependencies now declare TypeScript, `tsx`, Node/Express/HTTP type packages, and JSON Web Token type definitions. The current agent environment cannot reach the npm registry, so `Backend/package-lock.json` has deliberately not been fabricated or hand-edited. The branch therefore requires `npm install` before it can be verified with the new TypeScript scripts.
+Backend development dependencies now declare TypeScript, `tsx`, Node/Express/HTTP type packages, and JSON Web Token type definitions. Frontend development dependencies now declare TypeScript and Node type packages. The current agent environment cannot reach the npm registry, so the backend and frontend lockfiles have deliberately not been fabricated or hand-edited. The branch therefore requires dependency installation before it can be fully verified with the new TypeScript scripts.
 
 No runtime framework or ORM is being introduced for TypeScript itself.
 
@@ -58,8 +60,12 @@ No runtime framework or ORM is being introduced for TypeScript itself.
 - `Backend/index.ts`
 - `Backend/config/env.ts`
 - `Backend/utils/logger.ts`
+- `Frontend/tsconfig.json`
+- `Frontend/vite.config.ts`
+- `Frontend/src/vite-env.d.ts`
+- `Frontend/src/main.tsx`
 
-The application now has a strict TypeScript entry point and compiled `dist` target. The old JavaScript entry/configuration modules were removed rather than maintaining duplicate entry points.
+The application now has strict TypeScript entry points and compiled frontend/backend build targets. The old JavaScript backend entry/configuration modules and legacy frontend entry/configuration modules were removed rather than maintaining duplicate entry points.
 
 ### Errors and HTTP middleware
 
@@ -85,8 +91,12 @@ Request IDs, authenticated users, async handlers, validation results, and API er
 - `controller/user.controller.ts`
 - `routes/user.route.ts`
 - `validation/user.schemas.ts`
+- `Frontend/src/types/api.ts`
+- `Frontend/src/context/AuthProvider.tsx`
+- `Frontend/src/components/Login.tsx`
+- `Frontend/src/components/Signup.tsx`
 
-JWT payloads, session records, public users, registration inputs, and protected request handling are typed. The stable refresh-session behavior from Phase 02 is preserved.
+JWT payloads, session records, public users, registration inputs, protected request handling, and frontend authentication state now have explicit TypeScript boundaries. The stable refresh-session behavior from Phase 02 is preserved.
 
 ### Chat domain
 
@@ -98,15 +108,23 @@ JWT payloads, session records, public users, registration inputs, and protected 
 - `controller/message.controller.ts`
 - `routes/message.route.ts`
 - `validation/message.schemas.ts`
+- `Frontend/src/types/api.ts`
+- `Frontend/src/statemanage/useConversation.ts`
+- `Frontend/src/context/useGetMessage.ts`
+- `Frontend/src/context/useSendMessage.ts`
+- `Frontend/src/context/useGetAllUsers.ts`
 
-Message/conversation persistence and service inputs now use explicit `Types.ObjectId` boundaries instead of passing route strings through the domain layer.
+Message/conversation persistence and service inputs now use explicit `Types.ObjectId` boundaries instead of passing route strings through the domain layer. Frontend message/user state and API results now have explicit contracts.
 
 ### Realtime
 
 - `SocketIO/events.ts`
 - `SocketIO/server.ts`
+- `Frontend/src/types/socket.ts`
+- `Frontend/src/context/SocketContext.tsx`
+- `Frontend/src/context/useGetSocketMessage.ts`
 
-Socket.IO server-to-client event names and payloads are typed. Message events are serialized into a transport payload rather than emitting a raw Mongoose document.
+Socket.IO server-to-client event names and payloads are typed on both sides. Message events are serialized into a transport payload rather than emitting a raw Mongoose document. The client now uses a typed Socket.IO instance and cleans up named listeners during teardown.
 
 This does **not** solve socket authentication or distributed presence. The current socket identity remains client-supplied and the in-memory user-to-socket map remains single-instance/single-socket behavior; those are Phase 09/10 concerns.
 
@@ -115,6 +133,14 @@ This does **not** solve socket authentication or distributed presence. The curre
 Persistence documents are not treated as frontend contracts. Where the realtime boundary is already migrated, MongoDB `ObjectId` and `Date` values are converted to string representations before emission.
 
 The next shared-contract step should consolidate these DTOs so frontend and backend do not independently redefine the same wire shapes.
+
+## Frontend migration policy
+
+`Frontend/tsconfig.json` uses `strict: true`, `moduleResolution: Bundler`, `isolatedModules`, and `noEmit`. Legacy JavaScript is temporarily allowed with `checkJs: false` so presentational components can be migrated independently without a repository-wide flag day.
+
+The frontend build script runs `tsc --noEmit` before `vite build`, so a future CI pipeline cannot accidentally treat a successful Vite transpilation as proof of type safety.
+
+Frontend ESLint still targets JavaScript/JSX only. TypeScript-aware ESLint should be introduced with the appropriate parser/plugin dependencies rather than pretending the existing ESLint parser can validate TypeScript.
 
 ## Constraints
 
