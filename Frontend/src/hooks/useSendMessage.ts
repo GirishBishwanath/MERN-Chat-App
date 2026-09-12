@@ -5,7 +5,6 @@ import type { Message, SendMessageRequest } from "../types/api";
 
 interface UseSendMessageResult {
   loading: boolean;
-  error: boolean;
   sendMessage: (message: string) => Promise<boolean>;
 }
 
@@ -15,7 +14,6 @@ export function useSendMessage(): UseSendMessageResult {
   );
   const appendMessage = useConversationStore((state) => state.appendMessage);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(false);
 
   const sendMessage = async (message: string): Promise<boolean> => {
     const conversationId = selectedConversationId;
@@ -24,7 +22,6 @@ export function useSendMessage(): UseSendMessageResult {
     if (!conversationId || !trimmedMessage || loading) return false;
 
     setLoading(true);
-    setError(false);
 
     try {
       const response = await axiosClient.post<
@@ -37,12 +34,11 @@ export function useSendMessage(): UseSendMessageResult {
       return true;
     } catch (requestError) {
       console.error("Failed to send message", requestError);
-      setError(true);
       return false;
     } finally {
       setLoading(false);
     }
   };
 
-  return { loading, error, sendMessage };
+  return { loading, sendMessage };
 }
