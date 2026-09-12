@@ -2,38 +2,35 @@
 
 ## Status
 
-In progress. This phase is intentionally incremental.
+In progress. Source migration is substantially complete; final verification remains blocked until the declared dependencies can be installed in an environment with npm registry access.
 
 ## Repository baseline
 
-The backend started as JavaScript/ESM with explicit route, middleware, controller, service, repository, model, authentication, and Socket.IO boundaries. The frontend remains React/JSX with Context-based authentication/realtime state and Zustand available as a dependency.
+The backend started as JavaScript/ESM with explicit route, middleware, controller, service, repository, model, authentication, and Socket.IO boundaries. The frontend started as React/JSX with Context-based authentication/realtime state and Zustand for client conversation state.
 
 ## Migration decision
 
 Use TypeScript as an incremental boundary rather than converting every file at once.
 
-The first backend slice establishes:
+The migration established:
 
 - strict compiler configuration
 - NodeNext ESM semantics compatible with the existing backend
-- mixed JS/TS compilation through `allowJs`
-- generated declarations and source maps
-- an explicit `dist` build target
+- explicit `dist` output for the backend
 - typed runtime configuration
 - typed API error and request-validation contracts
 - typed authentication/session boundaries
 - typed user and chat persistence/service/controller boundaries
 - typed Socket.IO event payloads
+- typed frontend API, authentication, realtime, component, hook, and client-state boundaries
 
-The frontend slice now establishes the equivalent high-value client boundaries while retaining legacy UI modules for incremental conversion.
-
-Existing JavaScript remains where it is not yet part of the migrated boundary. This keeps the diff reviewable while allowing the highest-value contracts to become explicit first.
+The migration was performed in reviewable slices, preserving the existing application architecture instead of introducing a new framework or ORM merely for TypeScript.
 
 ## Why this approach
 
 A whole-repository extension-only conversion would create a large, difficult-to-review diff while preserving weak runtime boundaries. The existing service/repository structure is useful, so the migration strengthens those boundaries instead of replacing them.
 
-The migration order is:
+The migration order was:
 
 1. compiler/build/runtime foundation
 2. error, request, and validation contracts
@@ -41,16 +38,16 @@ The migration order is:
 4. user domain/repository/service/controller
 5. message/conversation domain/repository/service/controller
 6. Socket.IO event contracts and server boundary
-7. remaining backend modules
-8. shared frontend/backend contracts
-9. frontend API/auth/realtime boundaries
-10. remaining UI modules
+7. frontend API/auth/realtime boundaries
+8. frontend state and UI modules
+9. removal of duplicate JavaScript source modules
+10. strict TypeScript-only source configuration
 
 ## Dependency strategy
 
-Backend development dependencies now declare TypeScript, `tsx`, Node/Express/HTTP type packages, and JSON Web Token type definitions. Frontend development dependencies now declare TypeScript and Node type packages. The current agent environment cannot reach the npm registry, so the backend and frontend lockfiles have deliberately not been fabricated or hand-edited. The branch therefore requires dependency installation before it can be fully verified with the new TypeScript scripts.
+Backend development dependencies declare TypeScript, `tsx`, Node/Express/HTTP type packages, and JSON Web Token type definitions. Frontend development dependencies declare TypeScript and Node type packages. The current agent environment cannot reach the npm registry, so the backend and frontend lockfiles have deliberately not been fabricated or hand-edited. The branch therefore requires dependency installation before it can be fully verified with the new TypeScript scripts.
 
-No runtime framework or ORM is being introduced for TypeScript itself.
+No runtime framework or ORM was introduced for TypeScript itself.
 
 ## Current migrated boundary
 
@@ -65,7 +62,9 @@ No runtime framework or ORM is being introduced for TypeScript itself.
 - `Frontend/src/vite-env.d.ts`
 - `Frontend/src/main.tsx`
 
-The application now has strict TypeScript entry points and compiled frontend/backend build targets. The old JavaScript backend entry/configuration modules and legacy frontend entry/configuration modules were removed rather than maintaining duplicate entry points.
+Both application source trees now use strict TypeScript configuration. `allowJs` is disabled in both TypeScript configurations so JavaScript cannot silently re-enter the compiled application source boundary.
+
+The frontend build script runs `tsc --noEmit` before `vite build`.
 
 ### Errors and HTTP middleware
 
@@ -79,7 +78,7 @@ The application now has strict TypeScript entry points and compiled frontend/bac
 - `types/express.d.ts`
 - `types/http.ts`
 
-Request IDs, authenticated users, async handlers, validation results, and API error responses now have explicit TypeScript boundaries.
+Request IDs, authenticated users, async handlers, validation results, and API error responses have explicit TypeScript boundaries.
 
 ### Authentication and users
 
@@ -96,7 +95,7 @@ Request IDs, authenticated users, async handlers, validation results, and API er
 - `Frontend/src/components/Login.tsx`
 - `Frontend/src/components/Signup.tsx`
 
-JWT payloads, session records, public users, registration inputs, protected request handling, and frontend authentication state now have explicit TypeScript boundaries. The stable refresh-session behavior from Phase 02 is preserved.
+JWT payloads, session records, public users, registration inputs, protected request handling, and frontend authentication state have explicit TypeScript boundaries. The stable refresh-session behavior from Phase 02 is preserved.
 
 ### Chat domain
 
@@ -114,7 +113,7 @@ JWT payloads, session records, public users, registration inputs, protected requ
 - `Frontend/src/context/useSendMessage.ts`
 - `Frontend/src/context/useGetAllUsers.ts`
 
-Message/conversation persistence and service inputs now use explicit `Types.ObjectId` boundaries instead of passing route strings through the domain layer. Frontend message/user state and API results now have explicit contracts.
+Message/conversation persistence and service inputs use explicit `Types.ObjectId` boundaries instead of passing route strings through the domain layer. Frontend message/user state and API results have explicit contracts. Message sending uses a functional Zustand update so a concurrent realtime update cannot be overwritten by a stale captured array.
 
 ### Realtime
 
@@ -124,23 +123,27 @@ Message/conversation persistence and service inputs now use explicit `Types.Obje
 - `Frontend/src/context/SocketContext.tsx`
 - `Frontend/src/context/useGetSocketMessage.ts`
 
-Socket.IO server-to-client event names and payloads are typed on both sides. Message events are serialized into a transport payload rather than emitting a raw Mongoose document. The client now uses a typed Socket.IO instance and cleans up named listeners during teardown.
+Socket.IO server-to-client event names and payloads are typed on both sides. Message events are serialized into a transport payload rather than emitting a raw Mongoose document. The client uses a typed Socket.IO instance and cleans up named listeners during teardown.
 
 This does **not** solve socket authentication or distributed presence. The current socket identity remains client-supplied and the in-memory user-to-socket map remains single-instance/single-socket behavior; those are Phase 09/10 concerns.
 
+## Frontend source boundary
+
+The migrated frontend application source no longer keeps duplicate `.jsx` implementations alongside `.tsx` modules. The legacy `App.jsx`, authentication components/providers, chat components, hooks, Zustand store, Axios client, and left-panel components were removed after their TypeScript counterparts became the active imports.
+
+Presentational build configuration files that remain JavaScript (for example Tailwind/PostCSS configuration) are tooling configuration, not application source modules. They are outside the TypeScript application compilation boundary.
+
 ## API/transport principle
 
-Persistence documents are not treated as frontend contracts. Where the realtime boundary is already migrated, MongoDB `ObjectId` and `Date` values are converted to string representations before emission.
+Persistence documents are not treated as frontend contracts. Where the realtime boundary is migrated, MongoDB `ObjectId` and `Date` values are converted to string representations before emission.
 
-The next shared-contract step should consolidate these DTOs so frontend and backend do not independently redefine the same wire shapes.
+The next shared-contract step should consolidate these DTOs so frontend and backend do not independently redefine the same wire shapes, if that proves useful after the database/API design phases.
 
 ## Frontend migration policy
 
-`Frontend/tsconfig.json` uses `strict: true`, `moduleResolution: Bundler`, `isolatedModules`, and `noEmit`. Legacy JavaScript is temporarily allowed with `checkJs: false` so presentational components can be migrated independently without a repository-wide flag day.
+`Frontend/tsconfig.json` uses `strict: true`, `moduleResolution: Bundler`, `isolatedModules`, and `noEmit`. `allowJs` is disabled because application source migration is complete.
 
-The frontend build script runs `tsc --noEmit` before `vite build`, so a future CI pipeline cannot accidentally treat a successful Vite transpilation as proof of type safety.
-
-Frontend ESLint still targets JavaScript/JSX only. TypeScript-aware ESLint should be introduced with the appropriate parser/plugin dependencies rather than pretending the existing ESLint parser can validate TypeScript.
+Frontend ESLint still targets JavaScript/JSX only. TypeScript-aware ESLint should be introduced with the appropriate parser/plugin dependencies rather than pretending the existing ESLint parser can validate TypeScript. This is a dependency/tooling follow-up, not a reason to weaken TypeScript strictness.
 
 ## Constraints
 
