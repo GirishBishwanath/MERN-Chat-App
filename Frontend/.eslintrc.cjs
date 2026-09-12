@@ -3,23 +3,32 @@ module.exports = {
   env: { browser: true, es2020: true },
   extends: [
     'eslint:recommended',
+    'plugin:@typescript-eslint/recommended',
     'plugin:react/recommended',
     'plugin:react/jsx-runtime',
     'plugin:react-hooks/recommended',
   ],
   ignorePatterns: ['dist', '.eslintrc.cjs'],
-  parserOptions: { ecmaVersion: 'latest', sourceType: 'module' },
+  parser: '@typescript-eslint/parser',
+  parserOptions: {
+    ecmaVersion: 'latest',
+    sourceType: 'module',
+  },
   settings: { react: { version: '18.2' } },
-  plugins: ['react-refresh'],
+  plugins: ['@typescript-eslint', 'react-refresh'],
   rules: {
     'react/jsx-no-target-blank': 'off',
     'react/prop-types': 'off',
     'react-refresh/only-export-components': 'off',
-    'no-unused-vars': ['error', { varsIgnorePattern: '^(React|daisyui)$' }],
+    'no-unused-vars': 'off',
+    '@typescript-eslint/no-unused-vars': [
+      'error',
+      { varsIgnorePattern: '^(React|daisyui)$' },
+    ],
   },
   overrides: [
     {
-      files: ['vite.config.js', 'tailwind.config.js'],
+      files: ['*.config.js', '*.config.cjs'],
       env: { node: true },
     },
   ],
