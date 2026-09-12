@@ -5,10 +5,30 @@ export interface ConversationState {
   selectedConversation: PublicUser | null;
   messagesByConversation: Record<string, Message[]>;
   setSelectedConversation: (conversation: PublicUser | null) => void;
-  replaceMessages: (conversationId: string, messages: Message[]) => void;
+  mergeMessages: (conversationId: string, messages: Message[]) => void;
   appendMessage: (conversationId: string, message: Message) => void;
   clearMessages: (conversationId: string) => void;
 }
+
+const mergeUniqueMessages = (
+  currentMessages: Message[],
+  incomingMessages: Message[]
+): Message[] => {
+  const messagesById = new Map<string, Message>();
+
+  for (const message of currentMessages) {
+    messagesById.set(message._id, message);
+  }
+
+  for (const message of incomingMessages) {
+    messagesById.set(message._id, message);
+  }
+
+  return Array.from(messagesById.values()).sort(
+    (left, right) =>
+      new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime()
+  );
+};
 
 export const useConversationStore = create<ConversationState>((set) => ({
   selectedConversation: null,
@@ -17,13 +37,17 @@ export const useConversationStore = create<ConversationState>((set) => ({
   setSelectedConversation: (conversation) =>
     set({ selectedConversation: conversation }),
 
-  replaceMessages: (conversationId, messages) =>
-    set((state) => ({
-      messagesByConversation: {
-        ...state.messagesByConversation,
-        [conversationId]: messages,
-      },
-    })),
+  mergeMessages: (conversationId, messages) =>
+    set((state) => {
+      const currentMessages = state.messagesByConversation[conversationId] ?? [];
+
+      return {
+        messagesByConversation: {
+          ...state.messagesByConversation,
+          [conversationId]: mergeUniqueMessages(currentMessages, messages),
+        },
+      };
+    }),
 
   appendMessage: (conversationId, message) =>
     set((state) => {
