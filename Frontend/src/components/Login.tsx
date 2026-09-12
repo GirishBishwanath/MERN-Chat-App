@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import toast from "react-hot-toast";
 import axios from "../utils/axiosConfig";
 import { useAuth } from "../context/AuthProvider";
-import type { AuthResponse } from "../types/api";
+import type { ApiErrorResponse, AuthResponse } from "../types/api";
 
 interface LoginForm {
   email: string;
@@ -24,7 +24,7 @@ function Login() {
       setAuthUser(response.data.user);
       toast.success("Login successful");
     } catch (error) {
-      const message = axios.isAxiosError(error)
+      const message = axios.isAxiosError<ApiErrorResponse>(error)
         ? error.response?.data?.error
         : undefined;
       toast.error(message || "Unable to log in");
