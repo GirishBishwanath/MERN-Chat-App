@@ -1,8 +1,10 @@
-import useConversation from "../../statemanage/useConversation";
+import { useConversationStore } from "../../state/conversationStore";
 import { useSocketContext } from "../../context/SocketContext";
 
 function Chatuser() {
-  const { selectedConversation } = useConversation();
+  const selectedConversation = useConversationStore(
+    (state) => state.selectedConversation
+  );
   const { onlineUsers } = useSocketContext();
 
   if (!selectedConversation) return <div className="h-[12vh] bg-gray-700" />;
