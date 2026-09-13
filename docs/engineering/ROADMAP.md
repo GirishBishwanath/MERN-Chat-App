@@ -15,7 +15,7 @@ This roadmap is the version-controlled execution plan for evolving the chat appl
 | 4 | TypeScript Migration | Strict TypeScript, domain types, DTOs, API/socket/event contracts | **In progress; backend foundation/auth slice migrated** |
 | 5 | Frontend Architecture / State Management | Deliberate UI, feature, server-state, client-state, API and realtime boundaries | **Complete; implementation and local verification complete** |
 | 6 | PostgreSQL Data Model Design | Relational schema, constraints, indexes, access patterns, cursor-pagination design | **Complete; design documented and reviewed** |
-| 7 | Safe MongoDB → PostgreSQL Migration | PostgreSQL implementation, migrations, transactions, integrity checks, rollback strategy | Pending |
+| 7 | PostgreSQL Backend & Persistence Foundation | PostgreSQL runtime foundation, migrations, connection management, repositories/data access, transactions, integrity enforcement, and real-PostgreSQL integration testing | **Pending** |
 | 8 | Production API / Message Pagination | Stable API contracts, authorization, bounded cursor pagination, consistent errors/statuses | Pending |
 | 9 | Authenticated Realtime / Socket Correctness | Server-authenticated Socket.IO, reconnect/multi-device correctness, deduplication | Pending |
 | 10 | Redis Distributed Use Cases | Justified Redis usage for presence, rate limiting, Socket.IO scaling, or demonstrated caching | Pending |
@@ -73,11 +73,10 @@ Stop and report rather than guessing when:
 
 - a required environment variable is unavailable
 - production credentials are required
-- destructive migration lacks a safe strategy
+- destructive data operations lack a safe strategy
 - the current repository contradicts a key architectural assumption
 - a dependency is unavailable
 - tests fail for reasons that cannot be diagnosed confidently
-- a migration risks data loss
 - an infrastructure operation cannot be safely verified
 
 Complete whatever can be done safely without inventing facts.
@@ -89,3 +88,5 @@ The repository currently uses a `Backend/` and `Frontend/` layout with Express, 
 Phase 03 local verification is complete: the backend test command `node --test auth/*.test.js middleware/*.test.js` passed all 17 tests with zero failures.
 
 Phase 04 is currently being developed on `feat/typescript-migration`. The first slice establishes strict backend TypeScript configuration and migrates environment configuration, the application error contract, structured logger, request/validation/error middleware, user/session persistence boundaries, authentication/session lifecycle, user service/controller/routes, and typed authenticated request contracts. PostgreSQL and distributed infrastructure remain untouched.
+
+Phase 07 is intentionally being restarted from the clean Phase 06 baseline after the previous MongoDB-to-PostgreSQL migration approach was abandoned. The new phase establishes PostgreSQL as the backend persistence foundation from scratch; it does not include a MongoDB data importer, migration pipeline, or dual-write migration mechanism.
