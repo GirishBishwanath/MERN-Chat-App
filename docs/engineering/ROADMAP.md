@@ -15,7 +15,7 @@ This roadmap is the version-controlled execution plan for evolving the chat appl
 | 4 | TypeScript Migration | Strict TypeScript, domain types, DTOs, API/socket/event contracts | **In progress; backend foundation/auth slice migrated** |
 | 5 | Frontend Architecture / State Management | Deliberate UI, feature, server-state, client-state, API and realtime boundaries | **Complete; implementation and local verification complete** |
 | 6 | PostgreSQL Data Model Design | Relational schema, constraints, indexes, access patterns, cursor-pagination design | **Complete; design documented and reviewed** |
-| 7 | PostgreSQL Backend & Persistence Foundation | PostgreSQL runtime foundation, migrations, connection management, repositories/data access, transactions, integrity enforcement, and real-PostgreSQL integration testing | **Pending** |
+| 7 | PostgreSQL Backend & Persistence Foundation | PostgreSQL runtime foundation, migrations, connection management, repositories/data access, transactions, integrity enforcement, and real-PostgreSQL integration testing | **Implementation complete; local verification required for final gate** |
 | 8 | Production API / Message Pagination | Stable API contracts, authorization, bounded cursor pagination, consistent errors/statuses | Pending |
 | 9 | Authenticated Realtime / Socket Correctness | Server-authenticated Socket.IO, reconnect/multi-device correctness, deduplication | Pending |
 | 10 | Redis Distributed Use Cases | Justified Redis usage for presence, rate limiting, Socket.IO scaling, or demonstrated caching | Pending |
@@ -90,3 +90,20 @@ Phase 03 local verification is complete: the backend test command `node --test a
 Phase 04 is currently being developed on `feat/typescript-migration`. The first slice establishes strict backend TypeScript configuration and migrates environment configuration, the application error contract, structured logger, request/validation/error middleware, user/session persistence boundaries, authentication/session lifecycle, user service/controller/routes, and typed authenticated request contracts. PostgreSQL and distributed infrastructure remain untouched.
 
 Phase 07 is intentionally being restarted from the clean Phase 06 baseline after the previous MongoDB-to-PostgreSQL migration approach was abandoned. The new phase establishes PostgreSQL as the backend persistence foundation from scratch; it does not include a MongoDB data importer, migration pipeline, or dual-write migration mechanism.
+
+### Phase 07 implementation record
+
+The PostgreSQL foundation now includes:
+
+- `pg` as the runtime PostgreSQL driver with a synchronized npm lockfile.
+- Centralized connection pooling with explicit connection, idle, and pool sizing configuration.
+- Startup connectivity verification and graceful PostgreSQL pool shutdown.
+- Versioned SQL migrations protected by a PostgreSQL advisory lock and per-migration transactions.
+- Relational integrity constraints and access-pattern indexes defined in the initial schema.
+- Repository boundaries for users, conversations, messages, and sessions.
+- Transactional direct-conversation creation with canonical member ordering and database uniqueness enforcement.
+- Real PostgreSQL integration tests covering migrations, rollback, concurrent migration execution, constraints, repository behavior, and concurrent direct-conversation creation.
+
+Cursor-based message pagination remains intentionally deferred to Phase 08. MongoDB remains the current application runtime datastore; Phase 07 does not perform a MongoDB-to-PostgreSQL cutover.
+
+Final Phase 07 verification is intentionally not claimed here because the development `db:migrate` command must still be executed successfully against the developer's local PostgreSQL instance. The repository contains the `db:migrate` command and CI integration-test workflow, but remote repository tooling cannot substitute for that local database verification.
