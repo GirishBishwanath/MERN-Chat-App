@@ -39,6 +39,14 @@ const {
   findUserByNormalizedEmail,
 } = await import("../repositories/postgres/user.repository.js");
 
+const ensureCleanDatabase = async (): Promise<void> => {
+  await postgresPool.query(
+    "DROP TABLE IF EXISTS sessions, messages, conversation_members, conversations, users CASCADE"
+  );
+  await postgresPool.query("DROP TABLE IF EXISTS schema_migrations");
+};
+
+await ensureCleanDatabase();
 await runMigrations();
 
 const cleanup = async (): Promise<void> => {
