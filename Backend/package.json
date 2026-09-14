@@ -6,7 +6,9 @@
   "type": "module",
   "scripts": {
     "test": "tsx --import ./test/setup-env.js --test auth/*.test.js middleware/*.test.js",
-    "test:postgres": "tsx --import ./test/setup-env.js --test test/migrate.persistence.test.ts test/postgres.persistence.test.ts",
+    "test:postgres": "npm run test:postgres:migrations && npm run test:postgres:persistence",
+    "test:postgres:migrations": "tsx --import ./test/setup-env.js --test test/migrate.persistence.test.ts",
+    "test:postgres:persistence": "tsx --import ./test/setup-env.js --test test/postgres.persistence.test.ts",
     "db:migrate": "tsx db/migrate.ts",
     "typecheck": "tsc --noEmit",
     "build": "tsc && tsx db/copy-migrations.ts",
@@ -27,7 +29,6 @@
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.3.2",
     "nodemon": "^3.1.0",
-    "pg": "^8.16.3",
     "socket.io": "^4.7.5"
   },
   "devDependencies": {
