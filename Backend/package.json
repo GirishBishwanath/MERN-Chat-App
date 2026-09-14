@@ -6,6 +6,8 @@
   "type": "module",
   "scripts": {
     "test": "tsx --import ./test/setup-env.js --test auth/*.test.js middleware/*.test.js",
+    "test:postgres": "tsx --import ./test/setup-env.js --test test/postgres.persistence.test.ts",
+    "db:migrate": "tsx db/migrate.ts",
     "typecheck": "tsc --noEmit",
     "build": "tsc",
     "start": "node dist/index.js",
