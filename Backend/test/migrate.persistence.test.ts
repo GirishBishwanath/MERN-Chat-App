@@ -61,27 +61,40 @@ test("migration bookkeeping is not recorded when a migration statement fails", a
     )
   `);
 
+  // Force the migration to fail after earlier statements have executed inside
+  // the migration transaction. The conflicting table must survive while all
+  // tables created earlier in the same migration are rolled back.
   await postgresPool.query(`
-    CREATE TABLE users (
-      id UUID PRIMARY KEY,
-      fullname VARCHAR(100) NOT NULL,
-      email VARCHAR(320) NOT NULL UNIQUE,
-      password_hash TEXT NOT NULL,
-      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    CREATE TABLE messages (
+      id UUID PRIMARY KEY
     )
   `);
 
-  const conflictingEmail = "existing@example.com";
-  await postgresPool.query(
-    "INSERT INTO users (id, fullname, email, password_hash) VALUES (gen_random_uuid(), $1, $2, $3)",
-    ["Existing", conflictingEmail, "hash"]
+  await assert.rejects(
+    runMigrations(),
+    (error: unknown) => {
+      assert.equal((error as { code?: string }).code, "42P07");
+      return true;
+    }
   );
 
-  await assert.doesNotReject(() => runMigrations());
   const migrationResult = await postgresPool.query(
     "SELECT version FROM schema_migrations WHERE version = $1",
     ["001_initial_schema"]
   );
   assert.equal(migrationResult.rowCount, 0);
+
+  const rolledBackTables = await postgresPool.query(`
+    SELECT table_name
+    FROM information_schema.tables
+    WHERE table_schema = 'public'
+      AND table_name = ANY($1::text[])
+    ORDER BY table_name
+  `, [["users", "conversations", "conversation_members", "sessions"]]);
+  assert.deepEqual(rolledBackTables.rows, []);
+
+  const preservedConflict = await postgresPool.query(
+    "SELECT to_regclass('public.messages') AS table_name"
+  );
+  assert.equal(preservedConflict.rows[0]?.table_name, "messages");
 });
