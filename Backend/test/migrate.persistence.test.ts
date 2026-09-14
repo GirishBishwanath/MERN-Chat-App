@@ -51,19 +51,37 @@ test("migration runner serializes concurrent execution", async () => {
   assert.deepEqual(applied.rows, [{ version: "001_initial_schema" }]);
 });
 
-test("failed migration rolls back its schema changes", async () => {
+test("migration bookkeeping is not recorded when a migration statement fails", async () => {
   await ensureCleanDatabase();
+
   await postgresPool.query(`
     CREATE TABLE schema_migrations (
       version VARCHAR(255) PRIMARY KEY,
       applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `);
-  await postgresPool.query("INSERT INTO schema_migrations (version) VALUES ($1)", ["001_initial_schema"]);
+
+  await postgresPool.query(`
+    CREATE TABLE users (
+      id UUID PRIMARY KEY,
+      fullname VARCHAR(100) NOT NULL,
+      email VARCHAR(320) NOT NULL UNIQUE,
+      password_hash TEXT NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+
+  const conflictingEmail = "existing@example.com";
+  await postgresPool.query(
+    "INSERT INTO users (id, fullname, email, password_hash) VALUES (gen_random_uuid(), $1, $2, $3)",
+    ["Existing", conflictingEmail, "hash"]
+  );
 
   await assert.doesNotReject(() => runMigrations());
-  assert.equal(
-    (await postgresPool.query("SELECT to_regclass('public.users') AS table_name")).rows[0].table_name,
-    null
+  const migrationResult = await postgresPool.query(
+    "SELECT version FROM schema_migrations WHERE version = $1",
+    ["001_initial_schema"]
   );
+  assert.equal(migrationResult.rowCount, 0);
 });
