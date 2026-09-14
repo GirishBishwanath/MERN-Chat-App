@@ -6,7 +6,8 @@ import type { PoolClient } from "pg";
 
 import { postgresPool } from "./pool.js";
 
-const migrationsDirectory = path.dirname(fileURLToPath(import.meta.url)) + "/migrations";
+const currentDirectory = path.dirname(fileURLToPath(import.meta.url));
+const migrationsDirectory = path.join(currentDirectory, "migrations");
 
 const ensureMigrationsTable = async (client: PoolClient): Promise<void> => {
   await client.query(`
