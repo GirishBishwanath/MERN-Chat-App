@@ -1,9 +1,9 @@
-import express from "express";
 import mongoose from "mongoose";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 
 import { config } from "./config/env.js";
+import { closePostgresPool, verifyPostgresConnection } from "./db/pool.js";
 import userRoute from "./routes/user.route.js";
 import messageRoute from "./routes/message.route.js";
 import healthRoute from "./routes/health.route.js";
@@ -46,6 +46,9 @@ const startServer = async (): Promise<void> => {
   await mongoose.connect(config.mongodbUri);
   logger.info("database_connected", { database: "mongodb" });
 
+  await verifyPostgresConnection();
+  logger.info("database_connected", { database: "postgresql" });
+
   server.listen(config.port, "0.0.0.0", () => {
     logger.info("server_started", { port: config.port });
   });
@@ -53,10 +56,18 @@ const startServer = async (): Promise<void> => {
 
 const shutdown = async (signal: string): Promise<void> => {
   logger.info("server_shutdown_started", { signal });
+
   server.close(async () => {
-    await mongoose.disconnect();
-    logger.info("server_shutdown_completed");
-    process.exit(0);
+    try {
+      await Promise.all([mongoose.disconnect(), closePostgresPool()]);
+      logger.info("server_shutdown_completed");
+      process.exit(0);
+    } catch (error: unknown) {
+      logger.error("server_shutdown_failed", {
+        errorName: error instanceof Error ? error.name : "UnknownError",
+      });
+      process.exit(1);
+    }
   });
 };
 
