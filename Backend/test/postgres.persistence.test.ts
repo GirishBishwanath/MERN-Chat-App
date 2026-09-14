@@ -1,32 +1,43 @@
+process.env.NODE_ENV = "test";
+process.env.MONGODB_URI = "mongodb://127.0.0.1:27017/mern-chat-app-test";
+process.env.JWT_SECRET = "test-only-auth-secret";
+process.env.CORS_ORIGINS = "http://localhost:3001";
+process.env.POSTGRES_HOST = "127.0.0.1";
+process.env.POSTGRES_PORT = "5432";
+process.env.POSTGRES_DATABASE = "mern_chat_app_test";
+process.env.POSTGRES_USER = "postgres";
+process.env.POSTGRES_PASSWORD = "postgres";
+process.env.POSTGRES_SSL = "false";
+
 import assert from "node:assert/strict";
 import test from "node:test";
 import { randomUUID } from "node:crypto";
 
-import { postgresPool } from "../db/pool.js";
-import { runMigrations } from "../db/migrate.js";
-import {
+const { postgresPool } = await import("../db/pool.js");
+const { runMigrations } = await import("../db/migrate.js");
+const {
   canonicalizeMemberPair,
   createDirectConversation,
   findDirectConversation,
   getConversationMembers,
   isConversationMember,
-} from "../repositories/postgres/conversation.repository.js";
-import {
+} = await import("../repositories/postgres/conversation.repository.js");
+const {
   createMessage,
   findMessageById,
   findMessagesByConversation,
-} from "../repositories/postgres/message.repository.js";
-import {
+} = await import("../repositories/postgres/message.repository.js");
+const {
   createSession,
   findActiveSessionByTokenHash,
   revokeAllSessionsForUser,
   revokeSessionByTokenHash,
-} from "../repositories/postgres/session.repository.js";
-import {
+} = await import("../repositories/postgres/session.repository.js");
+const {
   createUser,
   findUserById,
   findUserByNormalizedEmail,
-} from "../repositories/postgres/user.repository.js";
+} = await import("../repositories/postgres/user.repository.js");
 
 await runMigrations();
 
