@@ -13,6 +13,15 @@ import {
 import { getMessagePageOptions } from "../validation/message.schemas.js";
 import type { AuthenticatedRequest } from "../types/http.js";
 
+const serializeMessage = (message: Awaited<ReturnType<typeof createMessage>>) => ({
+  _id: message._id.toString(),
+  senderId: message.senderId.toString(),
+  receiverId: message.receiverId.toString(),
+  message: message.message,
+  createdAt: message.createdAt.toISOString(),
+  updatedAt: message.updatedAt.toISOString(),
+});
+
 export const sendMessage = async (
   req: AuthenticatedRequest,
   res: Response
@@ -31,7 +40,7 @@ export const sendMessage = async (
     io.to(receiverSocketId).emit("newMessage", toMessageEventPayload(newMessage));
   }
 
-  return res.status(201).json(newMessage);
+  return res.status(201).json({ data: serializeMessage(newMessage) });
 };
 
 export const getMessage = async (
