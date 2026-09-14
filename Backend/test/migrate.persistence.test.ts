@@ -1,8 +1,19 @@
+process.env.NODE_ENV = "test";
+process.env.MONGODB_URI = "mongodb://127.0.0.1:27017/mern-chat-app-test";
+process.env.JWT_SECRET = "test-only-auth-secret";
+process.env.CORS_ORIGINS = "http://localhost:3001";
+process.env.POSTGRES_HOST = "127.0.0.1";
+process.env.POSTGRES_PORT = "5432";
+process.env.POSTGRES_DATABASE = "mern_chat_app_test";
+process.env.POSTGRES_USER = "postgres";
+process.env.POSTGRES_PASSWORD = "postgres";
+process.env.POSTGRES_SSL = "false";
+
+const { postgresPool } = await import("../db/pool.js");
+const { runMigrations } = await import("../db/migrate.js");
+
 import assert from "node:assert/strict";
 import test from "node:test";
-
-import { postgresPool } from "../db/pool.js";
-import { runMigrations } from "../db/migrate.js";
 
 const ensureCleanDatabase = async (): Promise<void> => {
   await postgresPool.query(
@@ -51,19 +62,9 @@ test("migration runner serializes concurrent execution", async () => {
   assert.deepEqual(applied.rows, [{ version: "001_initial_schema" }]);
 });
 
-test("migration bookkeeping is not recorded when a migration statement fails", async () => {
+test("migration rolls back earlier statements when a migration statement fails", async () => {
   await ensureCleanDatabase();
 
-  await postgresPool.query(`
-    CREATE TABLE schema_migrations (
-      version VARCHAR(255) PRIMARY KEY,
-      applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-    )
-  `);
-
-  // Force the migration to fail after earlier statements have executed inside
-  // the migration transaction. The conflicting table must survive while all
-  // tables created earlier in the same migration are rolled back.
   await postgresPool.query(`
     CREATE TABLE messages (
       id UUID PRIMARY KEY
