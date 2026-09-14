@@ -31,7 +31,9 @@ import {
 await runMigrations();
 
 const cleanup = async (): Promise<void> => {
-  await postgresPool.query("TRUNCATE sessions, messages, conversation_members, conversations, users CASCADE");
+  await postgresPool.query(
+    "TRUNCATE sessions, messages, conversation_members, conversations, users CASCADE"
+  );
 };
 
 test.beforeEach(cleanup);
@@ -41,17 +43,15 @@ test.after(async () => {
 });
 
 test("creates and finds a user by id and normalized email", async () => {
-  const id = randomUUID();
   const user = await createUser({
     fullname: "Alice Example",
     email: "alice@example.com",
     passwordHash: "hash",
   });
 
-  assert.equal(user.id.length, 36);
+  assert.match(user.id, /^[0-9a-f-]{36}$/);
   assert.equal((await findUserById(user.id))?.id, user.id);
   assert.equal((await findUserByNormalizedEmail("alice@example.com"))?.id, user.id);
-  assert.equal(id.length, 36);
 });
 
 test("database rejects duplicate user email", async () => {
