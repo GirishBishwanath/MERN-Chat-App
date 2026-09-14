@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "test": "tsx --import ./test/setup-env.js --test auth/*.test.js middleware/*.test.js",
+    "test:message": "tsx --test utils/messageCursor.test.ts validation/message.schemas.test.ts repositories/message.repository.test.ts",
     "test:postgres": "npm run test:postgres:migrations && npm run test:postgres:persistence",
     "test:postgres:migrations": "tsx --import ./test/setup-env.js --test test/migrate.persistence.test.ts",
     "test:postgres:persistence": "tsx --import ./test/setup-env.js --test test/postgres.persistence.test.ts",
