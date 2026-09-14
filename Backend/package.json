@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "test": "tsx --import ./test/setup-env.js --test auth/*.test.js middleware/*.test.js",
-    "test:postgres": "tsx --import ./test/setup-env.js --test test/postgres.persistence.test.ts",
+    "test:postgres": "tsx --import ./test/setup-env.js --test test/migrate.persistence.test.ts test/postgres.persistence.test.ts",
     "db:migrate": "tsx db/migrate.ts",
     "typecheck": "tsc --noEmit",
     "build": "tsc && tsx db/copy-migrations.ts",
