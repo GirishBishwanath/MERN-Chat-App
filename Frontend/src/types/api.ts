@@ -27,4 +27,15 @@ export interface SendMessageRequest {
   message: string;
 }
 
+export interface MessagePageMeta {
+  limit: number;
+  hasMore: boolean;
+  nextCursor: string | null;
+}
+
+export interface MessagePageResponse {
+  data: Message[];
+  meta: MessagePageMeta;
+}
+
 export type AuthStatus = "loading" | "authenticated" | "unauthenticated";
