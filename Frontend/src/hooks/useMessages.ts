@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import axiosClient from "../utils/axiosConfig";
 import { useConversationStore } from "../state/conversationStore";
-import type { MessagePageResponse } from "../types/api";
+import type { Message, MessagePageResponse } from "../types/api";
 
 export interface UseMessagesResult {
-  messages: ReturnType<typeof useConversationStore.getState>["messagesByConversation"][string];
+  messages: Message[];
   loading: boolean;
   error: boolean;
   retry: () => void;
