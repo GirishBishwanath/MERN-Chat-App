@@ -109,7 +109,7 @@ export const getMessages = async ({
     throw new AppError("Conversation not found", 404, ERROR_CODES.NOT_FOUND);
   }
 
-  const decodedCursor = cursor ? decodeMessageCursor(cursor) : undefined;
+  const decodedCursor = cursor ? decodeMessageCursor(cursor) ?? undefined : undefined;
   if (cursor && !decodedCursor) {
     throw new AppError("Cursor is invalid or malformed", 400, ERROR_CODES.VALIDATION_ERROR);
   }
