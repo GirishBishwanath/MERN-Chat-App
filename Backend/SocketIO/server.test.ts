@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import http from "node:http";
 import { once } from "node:events";
 import { after, before, beforeEach, test } from "node:test";
 
@@ -171,6 +170,14 @@ test("keeps a user online until the final socket disconnects", async () => {
   const socketA1 = await connectClient(issueToken(userA._id));
   const socketA2 = await connectClient(issueToken(userA._id));
   const observer = await connectClient(issueToken(userB._id));
+  let sawPrematureOffline = false;
+
+  const onOnlineUsers = (userIds: string[]) => {
+    if (!userIds.includes(userA._id.toString())) {
+      sawPrematureOffline = true;
+    }
+  };
+  observer.on("getOnlineUsers", onOnlineUsers);
 
   try {
     assert.equal(
@@ -185,17 +192,8 @@ test("keeps a user online until the final socket disconnects", async () => {
         1
     );
 
-    let sawPrematureOffline = false;
-    const onOnlineUsers = (userIds: string[]) => {
-      if (!userIds.includes(userA._id.toString())) {
-        sawPrematureOffline = true;
-      }
-    };
-    observer.on("getOnlineUsers", onOnlineUsers);
-
     await new Promise((resolve) => setTimeout(resolve, 100));
     assert.equal(sawPrematureOffline, false);
-    observer.off("getOnlineUsers", onOnlineUsers);
 
     const finalOffline = waitForOnlineUsers(
       observer,
@@ -210,6 +208,7 @@ test("keeps a user online until the final socket disconnects", async () => {
         0
     );
   } finally {
+    observer.off("getOnlineUsers", onOnlineUsers);
     socketA1.close();
     socketA2.close();
     observer.close();
