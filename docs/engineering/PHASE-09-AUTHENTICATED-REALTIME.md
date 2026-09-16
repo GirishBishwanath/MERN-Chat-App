@@ -34,6 +34,18 @@ Socket handshake failures use explicit error codes for missing, invalid, and exp
 
 The access token is a stateless JWT with a 15-minute lifetime, while refresh sessions are stored separately. Revoking a refresh session does not invalidate an already-issued access JWT. Phase 09 does not introduce a second revocation mechanism. A socket can therefore remain authenticated until its access JWT expires unless another existing authentication path changes the application state.
 
+## Integration coverage
+
+`Backend/SocketIO/server.test.ts` exercises the real Socket.IO server with Socket.IO clients and the test MongoDB/PostgreSQL persistence paths. Coverage includes:
+
+- missing, invalid, and expired access credentials;
+- server-derived identity and resistance to client `userId` impersonation;
+- multiple sockets for one user and final-disconnect presence semantics;
+- re-authentication on a new socket connection;
+- persisted REST-first message delivery to the receiver's server-managed user room.
+
+The backend test command is `npm run test:socket`. It requires the backend test MongoDB and PostgreSQL services already used by the existing integration tests.
+
 ## Deployment boundary
 
 This implementation is intentionally single-instance. The in-memory socket registry and Socket.IO rooms are local to one backend process. Redis presence and a Socket.IO Redis adapter are deferred to Phase 10; no distributed realtime state is claimed here.
