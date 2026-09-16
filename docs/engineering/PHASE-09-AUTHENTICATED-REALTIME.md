@@ -28,7 +28,7 @@ The frontend already deduplicates persisted messages by `_id`, so REST and realt
 
 ## Authentication errors
 
-Socket handshake failures use explicit error codes for missing, invalid, and expired access credentials. The frontend stops the rejected socket lifecycle instead of treating an authentication rejection as a normal network reconnect. Transient disconnects continue to use the normal reconnect state and do not clear authentication state.
+Socket handshake failures use explicit error codes for missing, invalid, and expired access credentials. The frontend stops an authentication-rejected socket from entering the normal reconnect loop. For an expired access JWT, it reuses the existing REST authentication path so the existing Axios refresh flow can obtain a new access token before reconnecting the socket. If that refresh fails, the existing `auth:expired` lifecycle clears authentication state. Missing or otherwise invalid socket credentials also use that existing auth-expired lifecycle. Transient network disconnects do not clear authentication state.
 
 ## Session revocation limitation
 
