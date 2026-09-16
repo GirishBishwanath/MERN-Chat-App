@@ -122,11 +122,12 @@ before(async () => {
   baseUrl = `http://127.0.0.1:${address.port}`;
 });
 
-beforeEach(() => {
-  assert.equal(io.sockets.sockets.size, 0);
+beforeEach(async () => {
+  await waitFor(() => io.sockets.sockets.size === 0);
 });
 
 after(async () => {
+  await waitFor(() => io.sockets.sockets.size === 0);
   await new Promise<void>((resolve) => server.close(() => resolve()));
   await User.deleteMany({ email: { $regex: `^${TEST_EMAIL_PREFIX}` } });
   await mongoose.disconnect();
