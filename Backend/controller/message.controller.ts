@@ -2,7 +2,7 @@ import type { Response } from "express";
 import { Types } from "mongoose";
 
 import {
-  getReceiverSocketId,
+  getUserRoomName,
   io,
   toMessageEventPayload,
 } from "../SocketIO/server.js";
@@ -35,10 +35,10 @@ export const sendMessage = async (
     message,
   });
 
-  const receiverSocketId = getReceiverSocketId(receiverId.toString());
-  if (receiverSocketId) {
-    io.to(receiverSocketId).emit("newMessage", toMessageEventPayload(newMessage));
-  }
+  io.to(getUserRoomName(receiverId.toString())).emit(
+    "newMessage",
+    toMessageEventPayload(newMessage)
+  );
 
   return res.status(201).json({ data: serializeMessage(newMessage) });
 };
