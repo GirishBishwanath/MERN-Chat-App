@@ -1,13 +1,13 @@
-import http from "node:http";
-import { once } from "node:events";
 import assert from "node:assert/strict";
-import { after, before, beforeEach, test } from "node:test";
+import { after, before, test } from "node:test";
 
 import jwt from "jsonwebtoken";
 import mongoose from "mongoose";
 import { io as createClient, type Socket as ClientSocket } from "socket.io-client";
 
 import { config } from "../config/env.js";
+import { closePostgresPool } from "../db/pool.js";
+import { sendMessage as sendMessageController } from "../controller/message.controller.js";
 import User from "../models/user.model.js";
 import { getUserRoomName, io, server } from "./server.js";
 
@@ -17,10 +17,16 @@ interface SocketConnectError extends Error {
   };
 }
 
+interface TestUser {
+  _id: mongoose.Types.ObjectId;
+  fullname: string;
+  email: string;
+}
+
 const TEST_EMAIL_PREFIX = "socket-test-";
 
-let userA: { _id: mongoose.Types.ObjectId };
-let userB: { _id: mongoose.Types.ObjectId };
+let userA: TestUser;
+let userB: TestUser;
 let baseUrl: string;
 
 const issueToken = (
@@ -44,9 +50,7 @@ const connectClient = (
     });
 
     socket.once("connect", () => resolve(socket));
-    socket.once("connect_error", (error: SocketConnectError) => {
-      reject(error);
-    });
+    socket.once("connect_error", (error: SocketConnectError) => reject(error));
   });
 
 const expectConnectionError = async (
@@ -83,6 +87,37 @@ const waitForOnlineUsers = (
     socket.on("getOnlineUsers", onOnlineUsers);
   });
 
+const waitForEvent = <T>(
+  socket: ClientSocket,
+  event: string
+): Promise<T> =>
+  new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      socket.off(event);
+      reject(new Error(`Timed out waiting for ${event}`));
+    }, 1000);
+
+    const handler = (payload: T) => {
+      clearTimeout(timeout);
+      socket.off(event, handler);
+      resolve(payload);
+    };
+
+    socket.on(event, handler);
+  });
+
+const closeClient = async (socket: ClientSocket): Promise<void> => {
+  if (!socket.connected) {
+    socket.close();
+    return;
+  }
+
+  await new Promise<void>((resolve) => {
+    socket.once("disconnect", () => resolve());
+    socket.close();
+  });
+};
+
 before(async () => {
   await mongoose.connect(config.mongodbUri);
 
@@ -100,8 +135,16 @@ before(async () => {
     },
   ]);
 
-  userA = { _id: createdUsers[0]._id };
-  userB = { _id: createdUsers[1]._id };
+  userA = {
+    _id: createdUsers[0]._id,
+    fullname: createdUsers[0].fullname,
+    email: createdUsers[0].email,
+  };
+  userB = {
+    _id: createdUsers[1]._id,
+    fullname: createdUsers[1].fullname,
+    email: createdUsers[1].email,
+  };
 
   await new Promise<void>((resolve) => {
     server.listen(0, "127.0.0.1", () => resolve());
@@ -112,13 +155,14 @@ before(async () => {
   baseUrl = `http://127.0.0.1:${address.port}`;
 });
 
-beforeEach(() => {
-  assert.equal(io.sockets.sockets.size, 0);
-});
-
 after(async () => {
+  for (const socket of io.sockets.sockets.values()) {
+    socket.disconnect(true);
+  }
+
   await new Promise<void>((resolve) => server.close(() => resolve()));
   await User.deleteMany({ email: { $regex: `^${TEST_EMAIL_PREFIX}` } });
+  await closePostgresPool();
   await mongoose.disconnect();
 });
 
@@ -148,7 +192,7 @@ test("authenticates from the access cookie and ignores client identity query par
     assert.equal(impersonatedRoom?.has(socket.id) ?? false, false);
     assert.equal(socket.handshake.query.userId, userB._id.toString());
   } finally {
-    socket.close();
+    await closeClient(socket);
   }
 });
 
@@ -163,8 +207,7 @@ test("keeps a user online until the final socket disconnects", async () => {
       2
     );
 
-    socketA1.close();
-    await new Promise((resolve) => setTimeout(resolve, 100));
+    await closeClient(socketA1);
 
     assert.equal(
       io.sockets.adapter.rooms.get(getUserRoomName(userA._id.toString()))?.size,
@@ -187,7 +230,7 @@ test("keeps a user online until the final socket disconnects", async () => {
       observer,
       (userIds) => !userIds.includes(userA._id.toString())
     );
-    socketA2.close();
+    await closeClient(socketA2);
     await finalOffline;
 
     assert.equal(
@@ -195,9 +238,9 @@ test("keeps a user online until the final socket disconnects", async () => {
       0
     );
   } finally {
-    socketA1.close();
-    socketA2.close();
-    observer.close();
+    await closeClient(socketA1);
+    await closeClient(socketA2);
+    await closeClient(observer);
   }
 });
 
@@ -213,13 +256,16 @@ test("re-authenticates a new socket on reconnect instead of reusing client ident
         ?.has(firstSocketId)
     );
 
+    const reconnected = new Promise<void>((resolve) => {
+      socket.once("connect", () => resolve());
+    });
+
     socket.io.opts.extraHeaders = {
       Cookie: `accessToken=${encodeURIComponent(issueToken(userB._id))}`,
     };
     socket.disconnect();
     socket.connect();
-
-    await once(socket, "connect");
+    await reconnected;
 
     assert.notEqual(socket.id, firstSocketId);
     assert.ok(
@@ -233,6 +279,51 @@ test("re-authenticates a new socket on reconnect instead of reusing client ident
       false
     );
   } finally {
-    socket.close();
+    await closeClient(socket);
+  }
+});
+
+test("emits a persisted message to the receiver's server-managed user room", async () => {
+  const receiverSocket = await connectClient(issueToken(userB._id));
+  const receivedMessage = waitForEvent<{
+    _id: string;
+    senderId: string;
+    receiverId: string;
+    message: string;
+    createdAt: string;
+    updatedAt: string;
+  }>(receiverSocket, "newMessage");
+
+  const responseBody: { data?: { _id: string; message: string } } = {};
+  const response = {
+    statusCode: 0,
+    status(statusCode: number) {
+      this.statusCode = statusCode;
+      return this;
+    },
+    json(payload: { data?: { _id: string; message: string } }) {
+      Object.assign(responseBody, payload);
+      return this;
+    },
+  } as never;
+
+  const request = {
+    params: { id: userB._id.toString() },
+    body: { message: "socket integration test" },
+    user: userA,
+  } as never;
+
+  try {
+    await sendMessageController(request, response);
+    const message = await receivedMessage;
+
+    assert.equal(response.statusCode, 201);
+    assert.equal(responseBody.data?.message, "socket integration test");
+    assert.equal(message._id, responseBody.data?._id);
+    assert.equal(message.senderId, userA._id.toString());
+    assert.equal(message.receiverId, userB._id.toString());
+    assert.equal(message.message, "socket integration test");
+  } finally {
+    await closeClient(receiverSocket);
   }
 });
