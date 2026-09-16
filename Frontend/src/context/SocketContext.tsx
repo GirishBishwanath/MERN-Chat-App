@@ -90,10 +90,7 @@ export function SocketProvider({ children }: SocketProviderProps) {
         setConnectionStatus("disconnected");
         setOnlineUsers([]);
         nextSocket.disconnect();
-
-        if (authCode === "AUTH_EXPIRED") {
-          window.dispatchEvent(new Event("auth:expired"));
-        }
+        window.dispatchEvent(new Event("auth:expired"));
         return;
       }
 
