@@ -87,6 +87,7 @@ export function SocketProvider({ children }: SocketProviderProps) {
 
       const authCode = (error as SocketConnectError).data?.code;
       if (authCode) {
+        active = false;
         setConnectionStatus("disconnected");
         setOnlineUsers([]);
         nextSocket.disconnect();
