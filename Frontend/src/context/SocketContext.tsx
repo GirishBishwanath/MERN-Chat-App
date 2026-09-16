@@ -25,6 +25,12 @@ interface SocketContextValue {
   connectionStatus: SocketConnectionStatus;
 }
 
+interface SocketConnectError extends Error {
+  data?: {
+    code?: "AUTH_REQUIRED" | "AUTH_INVALID" | "AUTH_EXPIRED";
+  };
+}
+
 const SocketContext = createContext<SocketContextValue | undefined>(undefined);
 
 interface SocketProviderProps {
@@ -62,9 +68,6 @@ export function SocketProvider({ children }: SocketProviderProps) {
       import.meta.env.VITE_BACKEND_URL || "http://localhost:4002",
       {
         withCredentials: true,
-        // Socket identity is still supplied by the legacy server handshake.
-        // Phase 09 will replace this with server-derived authenticated identity.
-        query: { userId: authUser._id },
       }
     );
 
@@ -79,8 +82,21 @@ export function SocketProvider({ children }: SocketProviderProps) {
       setOnlineUsers([]);
     };
 
-    const handleConnectError = () => {
+    const handleConnectError = (error: Error) => {
       if (!active) return;
+
+      const authCode = (error as SocketConnectError).data?.code;
+      if (authCode) {
+        setConnectionStatus("disconnected");
+        setOnlineUsers([]);
+        nextSocket.disconnect();
+
+        if (authCode === "AUTH_EXPIRED") {
+          window.dispatchEvent(new Event("auth:expired"));
+        }
+        return;
+      }
+
       setConnectionStatus("reconnecting");
       setOnlineUsers([]);
     };
