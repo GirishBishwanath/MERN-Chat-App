@@ -24,7 +24,7 @@
   "author": "Akhilesh",
   "license": "ISC",
   "dependencies": {
-    "@socket.io/redis-adapter": "^8.3.0",
+    "@socket.io/redis-adapter": "^8.2.0",
     "bcryptjs": "^2.4.3",
     "cookie-parser": "^1.4.6",
     "cors": "^2.8.5",
