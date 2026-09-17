@@ -8,3 +8,4 @@ process.env.POSTGRES_DATABASE = "mern_chat_app_test";
 process.env.POSTGRES_USER = "postgres";
 process.env.POSTGRES_PASSWORD = "postgres";
 process.env.POSTGRES_SSL = "false";
+process.env.REDIS_URL = "redis://127.0.0.1:6379/15";
