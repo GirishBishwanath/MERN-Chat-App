@@ -121,9 +121,11 @@ const removeSocketForUser = (userId: string, socketId: string): boolean => {
   return true;
 };
 
-const broadcastOnlineUsers = async (): Promise<void> => {
-  const candidateUserIds = Array.from(socketsByUser.keys());
-  const onlineUserIds = await getOnlineUserIds(redisClient, candidateUserIds);
+const emitOnlineUsers = async (): Promise<void> => {
+  const onlineUserIds = await getOnlineUserIds(
+    redisClient,
+    Array.from(socketsByUser.keys())
+  );
   io.emit("getOnlineUsers", onlineUserIds);
 };
 
@@ -192,7 +194,7 @@ io.on("connection", (socket) => {
   void markUserOnline(redisClient, userId)
     .then(async () => {
       if (becameOnline) {
-        await broadcastOnlineUsers();
+        await emitOnlineUsers();
         return;
       }
 
@@ -213,7 +215,7 @@ io.on("connection", (socket) => {
     if (!becameOffline) return;
 
     void markUserOffline(redisClient, userId)
-      .then(broadcastOnlineUsers)
+      .then(emitOnlineUsers)
       .catch((error: unknown) => {
         logger.error("redis_presence_delete_failed", {
           errorName: error instanceof Error ? error.name : "UnknownError",
