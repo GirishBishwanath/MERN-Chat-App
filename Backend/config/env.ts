@@ -43,6 +43,7 @@ if (corsOrigins.length === 0) {
 
 const nodeEnv = process.env.NODE_ENV || "development";
 const postgresSsl = process.env.POSTGRES_SSL?.trim().toLowerCase() === "true";
+const redisUrl = process.env.REDIS_URL?.trim() || "redis://127.0.0.1:6379";
 
 export const config = Object.freeze({
   nodeEnv,
@@ -50,6 +51,9 @@ export const config = Object.freeze({
   mongodbUri: required("MONGODB_URI"),
   jwtSecret: required("JWT_SECRET"),
   corsOrigins,
+  redis: Object.freeze({
+    url: redisUrl,
+  }),
   postgres: Object.freeze({
     host: process.env.POSTGRES_HOST?.trim() || "127.0.0.1",
     port: optionalPort("POSTGRES_PORT", 5432),
