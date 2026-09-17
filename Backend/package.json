@@ -11,6 +11,7 @@
     "test:postgres:migrations": "tsx --import ./test/setup-env.js --test test/migrate.persistence.test.ts",
     "test:postgres:persistence": "tsx --import ./test/setup-env.js --test test/postgres.persistence.test.ts",
     "test:socket": "tsx --import ./test/setup-env.js --test SocketIO/server.test.ts",
+    "test:redis": "tsx --import ./test/setup-env.js --test infra/redis/redis.test.ts",
     "db:migrate": "tsx db/migrate.ts",
     "typecheck": "tsc --noEmit",
     "build": "tsc && tsx db/copy-migrations.ts",
@@ -23,6 +24,7 @@
   "author": "Akhilesh",
   "license": "ISC",
   "dependencies": {
+    "@socket.io/redis-adapter": "^8.3.0",
     "bcryptjs": "^2.4.3",
     "cookie-parser": "^1.4.6",
     "cors": "^2.8.5",
@@ -32,6 +34,7 @@
     "mongoose": "^8.3.2",
     "nodemon": "^3.1.0",
     "pg": "^8.16.3",
+    "redis": "^5.0.2",
     "socket.io": "^4.7.5"
   },
   "devDependencies": {
