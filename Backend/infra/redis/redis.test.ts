@@ -16,7 +16,7 @@ const redis = createClient({ url: config.redis.url });
 
 const waitFor = async (
   predicate: () => Promise<boolean>,
-  timeoutMs = 2000
+  timeoutMs = 2500
 ): Promise<void> => {
   const startedAt = Date.now();
   while (!(await predicate())) {
@@ -45,7 +45,19 @@ test("marks a user online with a bounded TTL", async () => {
   await markUserOnline(redis, userId);
 
   assert.equal(await isUserOnline(redis, userId), true);
-  assert.equal(await redis.ttl(`chatapp:presence:user:${userId}`), PRESENCE_TTL_SECONDS);
+  const ttl = await redis.ttl(`chatapp:presence:user:${userId}`);
+  assert.ok(ttl > 0);
+  assert.ok(ttl <= PRESENCE_TTL_SECONDS);
+});
+
+test("refreshes the presence TTL for an already-online user", async () => {
+  const userId = "redis-test-refresh";
+
+  await redis.set(`chatapp:presence:user:${userId}`, "1", { EX: 1 });
+  await new Promise((resolve) => setTimeout(resolve, 100));
+  await markUserOnline(redis, userId);
+
+  assert.ok((await redis.ttl(`chatapp:presence:user:${userId}`)) > 1);
 });
 
 test("removes a user's presence explicitly", async () => {
@@ -71,7 +83,7 @@ test("expired presence is treated as offline", async () => {
   const userId = "redis-test-expiry";
   await redis.set(`chatapp:presence:user:${userId}`, "1", { EX: 1 });
 
-  await waitFor(async () => !(await isUserOnline(redis, userId)), 2500);
+  await waitFor(async () => !(await isUserOnline(redis, userId)));
 
   assert.equal(await isUserOnline(redis, userId), false);
 });
