@@ -11,7 +11,7 @@
     "test:postgres:migrations": "tsx --import ./test/setup-env.js --test test/migrate.persistence.test.ts",
     "test:postgres:persistence": "tsx --import ./test/setup-env.js --test test/postgres.persistence.test.ts",
     "test:socket": "tsx --import ./test/setup-env.js --test SocketIO/server.test.ts",
-    "test:redis": "tsx --import ./test/setup-env.js --test infra/redis/redis.test.ts",
+    "test:redis": "tsx --import ./test/setup-env.js --test infra/redis/redis.test.ts infra/redis/multi-instance.test.ts",
     "db:migrate": "tsx db/migrate.ts",
     "typecheck": "tsc --noEmit",
     "build": "tsc && tsx db/copy-migrations.ts",
