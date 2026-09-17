@@ -1,9 +1,11 @@
 import http from "node:http";
 import express from "express";
 import { Server } from "socket.io";
+import { createAdapter } from "@socket.io/redis-adapter";
 
 import { verifyAccessToken } from "../auth/session.js";
 import { findPublicById } from "../repositories/user.repository.js";
+import { closeRedis, connectRedis, getRedisClient, verifyRedisConnection } from "../infra/redis/client.js";
 import type { MessageDocument } from "../models/message.model.js";
 import type {
   ClientToServerEvents,
@@ -15,12 +17,23 @@ import type {
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server<
+
+const redisClient = getRedisClient();
+const redisSubscriber = redisClient.duplicate();
+
+redisSubscriber.on("error", (error: unknown) => {
+  console.error("redis_subscriber_error", {
+    errorName: error instanceof Error ? error.name : "UnknownError",
+  });
+});
+
+export const io = new Server<
   ClientToServerEvents,
   ServerToClientEvents,
   InterServerEvents,
   SocketData
 >(server, {
+  adapter: createAdapter(redisClient, redisSubscriber),
   cors: {
     origin: ["https://mern-chat-app-jade.vercel.app", "http://localhost:3001"],
     methods: ["GET", "POST"],
@@ -97,7 +110,7 @@ const removeSocketForUser = (userId: string, socketId: string): boolean => {
   return true;
 };
 
-const getOnlineUserIds = (): string[] => Array.from(socketsByUser.keys());
+export const getOnlineUserIds = (): string[] => Array.from(socketsByUser.keys());
 
 io.use(async (socket, next) => {
   const token = getCookie(socket.handshake.headers.cookie, "accessToken");
@@ -141,6 +154,20 @@ export const toMessageEventPayload = (
   updatedAt: message.updatedAt.toISOString(),
 });
 
+export const initializeRedisAdapter = async (): Promise<void> => {
+  await connectRedis();
+  await redisSubscriber.connect();
+  await verifyRedisConnection();
+};
+
+export const closeSocketInfrastructure = async (): Promise<void> => {
+  await io.close();
+  if (redisSubscriber.isOpen) {
+    await redisSubscriber.quit();
+  }
+  await closeRedis();
+};
+
 io.on("connection", (socket) => {
   const userId = socket.data.userId;
   const becameOnline = addSocketForUser(userId, socket.id);
@@ -150,7 +177,6 @@ io.on("connection", (socket) => {
   if (becameOnline) {
     io.emit("getOnlineUsers", getOnlineUserIds());
   } else {
-    // Keep the derived presence state deterministic for newly connected tabs/devices.
     socket.emit("getOnlineUsers", getOnlineUserIds());
   }
 
@@ -163,4 +189,4 @@ io.on("connection", (socket) => {
   });
 });
 
-export { app, io, server };
+export { app, server };
