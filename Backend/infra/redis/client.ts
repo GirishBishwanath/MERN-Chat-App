@@ -34,3 +34,5 @@ export const closeRedis = async (): Promise<void> => {
 };
 
 export const getRedisClient = (): RedisClient => redisClient;
+
+export const createRedisSubscriber = (): RedisClient => redisClient.duplicate();
