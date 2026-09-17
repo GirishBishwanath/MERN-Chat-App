@@ -5,7 +5,14 @@ import { createAdapter } from "@socket.io/redis-adapter";
 
 import { verifyAccessToken } from "../auth/session.js";
 import { findPublicById } from "../repositories/user.repository.js";
-import { closeRedis, connectRedis, getRedisClient, verifyRedisConnection } from "../infra/redis/client.js";
+import {
+  closeRedis,
+  connectRedis,
+  createRedisSubscriber,
+  getRedisClient,
+  verifyRedisConnection,
+} from "../infra/redis/client.js";
+import { logger } from "../utils/logger.js";
 import type { MessageDocument } from "../models/message.model.js";
 import type {
   ClientToServerEvents,
@@ -17,12 +24,11 @@ import type {
 
 const app = express();
 const server = http.createServer(app);
-
 const redisClient = getRedisClient();
-const redisSubscriber = redisClient.duplicate();
+const redisSubscriber = createRedisSubscriber();
 
 redisSubscriber.on("error", (error: unknown) => {
-  console.error("redis_subscriber_error", {
+  logger.error("redis_subscriber_error", {
     errorName: error instanceof Error ? error.name : "UnknownError",
   });
 });
@@ -43,6 +49,8 @@ export const io = new Server<
 
 const socketsByUser = new Map<string, Set<string>>();
 const USER_ROOM_PREFIX = "user:";
+const PRESENCE_KEY_PREFIX = "chatapp:presence:user:";
+const PRESENCE_TTL_SECONDS = 60;
 
 interface SocketAuthError extends Error {
   data: { code: "AUTH_REQUIRED" | "AUTH_INVALID" | "AUTH_EXPIRED" };
@@ -83,6 +91,9 @@ const getCookie = (
   return undefined;
 };
 
+const presenceKey = (userId: string): string =>
+  `${PRESENCE_KEY_PREFIX}${userId}`;
+
 export const getUserRoomName = (userId: string): string =>
   `${USER_ROOM_PREFIX}${userId}`;
 
@@ -110,7 +121,31 @@ const removeSocketForUser = (userId: string, socketId: string): boolean => {
   return true;
 };
 
-export const getOnlineUserIds = (): string[] => Array.from(socketsByUser.keys());
+const markPresence = async (userId: string): Promise<void> => {
+  await redisClient.set(presenceKey(userId), "1", { EX: PRESENCE_TTL_SECONDS });
+};
+
+const clearPresence = async (userId: string): Promise<void> => {
+  await redisClient.del(presenceKey(userId));
+};
+
+const isPresenceActive = async (userId: string): Promise<boolean> =>
+  (await redisClient.exists(presenceKey(userId))) === 1;
+
+export const getOnlineUserIds = async (candidateUserIds: string[]): Promise<string[]> => {
+  if (candidateUserIds.length === 0) return [];
+
+  const active: string[] = [];
+  for (const userId of candidateUserIds) {
+    if (await isPresenceActive(userId)) active.push(userId);
+  }
+  return active;
+};
+
+const broadcastOnlineUsers = async (): Promise<void> => {
+  const userIds = await getOnlineUserIds(Array.from(socketsByUser.keys()));
+  io.emit("getOnlineUsers", userIds);
+};
 
 io.use(async (socket, next) => {
   const token = getCookie(socket.handshake.headers.cookie, "accessToken");
@@ -174,18 +209,31 @@ io.on("connection", (socket) => {
 
   void socket.join(getUserRoomName(userId));
 
-  if (becameOnline) {
-    io.emit("getOnlineUsers", getOnlineUserIds());
-  } else {
-    socket.emit("getOnlineUsers", getOnlineUserIds());
-  }
+  void markPresence(userId)
+    .then(async () => {
+      if (becameOnline) await broadcastOnlineUsers();
+      else socket.emit("getOnlineUsers", await getOnlineUserIds(Array.from(socketsByUser.keys())));
+    })
+    .catch((error: unknown) => {
+      logger.error("redis_presence_set_failed", {
+        errorName: error instanceof Error ? error.name : "UnknownError",
+        userId,
+      });
+    });
 
   socket.on("disconnect", () => {
     const becameOffline = removeSocketForUser(userId, socket.id);
 
-    if (becameOffline) {
-      io.emit("getOnlineUsers", getOnlineUserIds());
-    }
+    if (!becameOffline) return;
+
+    void clearPresence(userId)
+      .then(() => broadcastOnlineUsers())
+      .catch((error: unknown) => {
+        logger.error("redis_presence_delete_failed", {
+          errorName: error instanceof Error ? error.name : "UnknownError",
+          userId,
+        });
+      });
   });
 });
 
