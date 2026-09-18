@@ -16,7 +16,8 @@
     "typecheck": "tsc --noEmit",
     "build": "tsc && tsx db/copy-migrations.ts",
     "start": "node dist/index.js",
-    "dev": "tsx index.ts"
+    "dev": "tsx index.ts",
+    "test:security": "tsx --import ./test/setup-env.js --test middleware/securityHardening.test.ts validation/user.schemas.test.ts auth/session.test.js SocketIO/server.test.ts"
   },
   "keywords": [
     "MERN"
