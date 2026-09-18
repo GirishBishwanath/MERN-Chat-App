@@ -32,6 +32,15 @@ describe("access authentication", () => {
     assert.throws(() => verifyAccessToken(token), { name: "TokenExpiredError" });
   });
 
+  test("rejects malformed authentication tokens as invalid authentication", () => {
+    const malformedToken = jwt.sign({ userId: "not-an-object-id", sessionId }, process.env.JWT_SECRET, {
+      expiresIn: "15m",
+      algorithm: "HS256",
+    });
+
+    assert.throws(() => verifyAccessToken(malformedToken));
+  });
+
   test("rejects access tokens without a valid session id", () => {
     const token = jwt.sign(
       { userId },
