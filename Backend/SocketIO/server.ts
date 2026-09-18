@@ -218,10 +218,12 @@ io.on("connection", (socket) => {
     clearInterval(heartbeat);
     const becameOffline = removeSocketForUser(userId, socket.id);
 
-    if (!becameOffline) return;
-
+    // Every socket owns its own Redis lease, so every disconnect must remove
+    // that lease. Only the final local socket transition triggers a broadcast.
     void markUserOffline(redisClient, userId, socket.id)
       .then(async () => {
+        if (!becameOffline) return;
+
         const onlineUserIds = await getOnlineUserIds(redisClient);
         io.emit("getOnlineUsers", onlineUserIds);
       })
