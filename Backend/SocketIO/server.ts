@@ -3,6 +3,7 @@ import express from "express";
 import { Server } from "socket.io";
 import { createAdapter } from "@socket.io/redis-adapter";
 
+import { config } from "../config/env.js";
 import { findActiveSessionById, verifyAccessToken } from "../auth/session.js";
 import { findPublicById } from "../repositories/user.repository.js";
 import {
