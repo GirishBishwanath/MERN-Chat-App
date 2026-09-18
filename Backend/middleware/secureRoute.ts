@@ -35,7 +35,7 @@ const secureRoute = async (
   try {
     const token = req.cookies?.accessToken;
     if (typeof token !== "string") {
-      res.status(401).json({ error: "Authentication required" });
+      next(new AppError("Authentication required", 401, ERROR_CODES.UNAUTHENTICATED));
       return;
     }
 
