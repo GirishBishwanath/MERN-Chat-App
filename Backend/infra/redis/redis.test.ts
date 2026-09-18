@@ -50,28 +50,48 @@ test("marks a user online with a bounded TTL", async () => {
   assert.ok(ttl <= PRESENCE_TTL_SECONDS);
 });
 
-test("refreshes the presence TTL for an already-online user", async () => {
+test("refreshes the presence lease for an already-connected socket", async () => {
   const userId = "redis-test-refresh";
+  const socketId = "redis-test-refresh-socket";
 
-  await redis.set(`chatapp:presence:user:${userId}`, "1", { EX: 1 });
+  await redis.set(`chatapp:presence:user:${userId}:sockets`, "stale", { EX: 1 });
+  await markUserOnline(redis, userId, socketId);
+
+  const firstExpiry = await redis.zScore(
+    `chatapp:presence:user:${userId}:sockets`,
+    socketId
+  );
   await new Promise((resolve) => setTimeout(resolve, 100));
-  await markUserOnline(redis, userId);
+  await markUserOnline(redis, userId, socketId);
 
-  assert.ok((await redis.ttl(`chatapp:presence:user:${userId}`)) > 1);
+  const refreshedExpiry = await redis.zScore(
+    `chatapp:presence:user:${userId}:sockets`,
+    socketId
+  );
+
+  assert.ok(firstExpiry);
+  assert.ok(refreshedExpiry);
+  assert.ok(refreshedExpiry > firstExpiry);
+  assert.ok(
+    refreshedExpiry - Date.now() <= PRESENCE_TTL_SECONDS * 1000
+  );
 });
 
-test("removes a user's presence explicitly", async () => {
+test("removes a socket lease without affecting another socket", async () => {
   const userId = "redis-test-offline";
+  await markUserOnline(redis, userId, "socket-a");
+  await markUserOnline(redis, userId, "socket-b");
 
-  await markUserOnline(redis, userId);
-  await markUserOffline(redis, userId);
+  await markUserOffline(redis, userId, "socket-a");
 
+  assert.equal(await isUserOnline(redis, userId), true);
+  await markUserOffline(redis, userId, "socket-b");
   assert.equal(await isUserOnline(redis, userId), false);
 });
 
 test("returns only active users from a candidate set", async () => {
-  await markUserOnline(redis, "user-a");
-  await markUserOnline(redis, "user-c");
+  await markUserOnline(redis, "user-a", "socket-a");
+  await markUserOnline(redis, "user-c", "socket-c");
 
   assert.deepEqual(await getOnlineUserIds(redis, ["user-a", "user-b", "user-c"]), [
     "user-a",
@@ -81,9 +101,16 @@ test("returns only active users from a candidate set", async () => {
 
 test("expired presence is treated as offline", async () => {
   const userId = "redis-test-expiry";
-  await redis.set(`chatapp:presence:user:${userId}`, "1", { EX: 1 });
+  const socketId = "redis-test-expiry-socket";
 
-  await waitFor(async () => !(await isUserOnline(redis, userId)));
+  await redis.zAdd(`chatapp:presence:user:${userId}:sockets`, [
+    { score: Date.now() + 1000, value: socketId },
+  ]);
+  await redis.zAdd(`chatapp:presence:user:${userId}:sockets`, [
+    { score: Date.now() - 1, value: "expired-socket" },
+  ]);
 
+  assert.equal(await isUserOnline(redis, userId), true);
+  await redis.del(`chatapp:presence:user:${userId}:sockets`);
   assert.equal(await isUserOnline(redis, userId), false);
 });
