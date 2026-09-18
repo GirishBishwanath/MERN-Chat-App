@@ -202,6 +202,9 @@ test("keeps a user online until the final socket disconnects", async () => {
       (userIds) => !userIds.includes(userA._id.toString())
     );
     socketA2.disconnect();
+    await waitFor(
+      () => io.sockets.sockets.size === 1
+    );
     await finalOffline;
 
     await waitFor(
