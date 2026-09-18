@@ -57,8 +57,10 @@ export const errorHandler: ErrorRequestHandler = (
     );
   } else if (error instanceof Error && error.message === "CORS policy violation") {
     appError = new AppError("Origin is not allowed", 403, ERROR_CODES.FORBIDDEN);
-  } else if (error instanceof jwt.TokenExpiredError || error instanceof jwt.JsonWebTokenError) {
+  } else if (error instanceof jwt.TokenExpiredError) {
     appError = new AppError("Session expired", 401, ERROR_CODES.SESSION_EXPIRED);
+  } else if (error instanceof jwt.JsonWebTokenError) {
+    appError = new AppError("Invalid authentication", 401, ERROR_CODES.UNAUTHENTICATED);
   } else if (error instanceof mongoose.Error.ValidationError) {
     appError = new AppError(
       "Database validation failed",
