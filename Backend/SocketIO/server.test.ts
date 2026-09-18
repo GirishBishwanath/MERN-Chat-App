@@ -27,9 +27,14 @@ let baseUrl: string;
 
 const issueToken = (
   userId: mongoose.Types.ObjectId,
+  sessionId: mongoose.Types.ObjectId,
   expiresIn: jwt.SignOptions["expiresIn"] = "15m"
 ): string =>
-  jwt.sign(\n    { userId: userId.toString(), sessionId: sessionId.toString() },\n    config.jwtSecret,\n    { expiresIn, algorithm: "HS256" }\n  );
+  jwt.sign(
+    { userId: userId.toString(), sessionId: sessionId.toString() },
+    config.jwtSecret,
+    { expiresIn, algorithm: "HS256" }
+  );
 
 const connectClient = (
   token?: string,
@@ -117,6 +122,24 @@ before(async () => {
   userA = { _id: createdUsers[0]._id };
   userB = { _id: createdUsers[1]._id };
 
+  const createdSessions = await Session.create([
+    {
+      userId: userA._id,
+      tokenHash: `socket-session-a-${suffix}`,
+      expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+      lastUsedAt: new Date(),
+    },
+    {
+      userId: userB._id,
+      tokenHash: `socket-session-b-${suffix}`,
+      expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+      lastUsedAt: new Date(),
+    },
+  ]);
+
+  sessionA = createdSessions[0]._id;
+  sessionB = createdSessions[1]._id;
+
   await new Promise<void>((resolve) => {
     server.listen(0, "127.0.0.1", () => resolve());
   });
@@ -133,7 +156,8 @@ beforeEach(async () => {
 after(async () => {
   await waitFor(() => io.sockets.sockets.size === 0);
   await closeSocketInfrastructure();
-  await Session.deleteMany({ _id: { $in: [sessionA, sessionB] } });\n  await User.deleteMany({ email: { $regex: `^${TEST_EMAIL_PREFIX}` } });
+  await Session.deleteMany({ _id: { $in: [sessionA, sessionB] } });
+  await User.deleteMany({ email: { $regex: `^${TEST_EMAIL_PREFIX}` } });
   await mongoose.disconnect();
 });
 
