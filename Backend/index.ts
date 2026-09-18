@@ -10,10 +10,14 @@ import messageRoute from "./routes/message.route.js";
 import healthRoute from "./routes/health.route.js";
 import { app, closeSocketInfrastructure, initializeRedisAdapter, server } from "./SocketIO/server.js";
 import { requestContext } from "./middleware/requestContext.js";
+import { securityHeaders } from "./middleware/securityHeaders.js";
+import { verifyRequestOrigin } from "./middleware/verifyOrigin.js";
 import { notFoundHandler, errorHandler } from "./middleware/errorHandler.js";
 import { logger } from "./utils/logger.js";
 
+app.disable("x-powered-by");
 app.use(requestContext);
+app.use(securityHeaders);
 app.use(
   cors({
     origin: (origin, callback) => {
@@ -23,7 +27,7 @@ app.use(
       return callback(new Error("CORS policy violation"));
     },
     credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: [
       "Content-Type",
       "Authorization",
@@ -33,10 +37,12 @@ app.use(
     ],
   })
 );
-app.use(express.json());
+app.use(express.json({ limit: "16kb" }));
 app.use(cookieParser());
 
 app.use("/health", healthRoute);
+
+app.use(verifyRequestOrigin);
 app.use("/api/user", userRoute);
 app.use("/api/message", messageRoute);
 
