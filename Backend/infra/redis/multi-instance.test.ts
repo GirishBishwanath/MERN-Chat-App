@@ -27,6 +27,7 @@ const connect = (url: string): Promise<ClientSocket> =>
 test("Redis adapter delivers room events across two Socket.IO instances", async () => {
   const redis = getRedisClient();
   if (!redis.isOpen) await redis.connect();
+  await redis.flushDb();
 
   const instanceA = createTestInstance();
   const instanceB = createTestInstance();
