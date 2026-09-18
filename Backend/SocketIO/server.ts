@@ -191,12 +191,14 @@ io.on("connection", (socket) => {
 
   void markUserOnline(redisClient, userId, socket.id)
     .then(async () => {
+      const onlineUserIds = await getOnlineUserIds(redisClient);
+
       if (becameOnline) {
-        await emitOnlineUsers();
+        io.emit("getOnlineUsers", onlineUserIds);
         return;
       }
 
-      socket.emit("getOnlineUsers", await getOnlineUserIds(redisClient));
+      socket.emit("getOnlineUsers", onlineUserIds);
     })
     .catch((error: unknown) => {
       logger.error("redis_presence_set_failed", {
@@ -219,7 +221,10 @@ io.on("connection", (socket) => {
     if (!becameOffline) return;
 
     void markUserOffline(redisClient, userId, socket.id)
-      .then(emitOnlineUsers)
+      .then(async () => {
+        const onlineUserIds = await getOnlineUserIds(redisClient);
+        io.emit("getOnlineUsers", onlineUserIds);
+      })
       .catch((error: unknown) => {
         logger.error("redis_presence_delete_failed", {
           errorName: error instanceof Error ? error.name : "UnknownError",
