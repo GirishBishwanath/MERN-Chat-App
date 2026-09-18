@@ -31,6 +31,7 @@ const app = express();
 const server = http.createServer(app);
 const redisClient = getRedisClient();
 const redisSubscriber = createRedisSubscriber();
+const HEARTBEAT_INTERVAL_MS = 30_000;
 
 redisSubscriber.on("error", (error: unknown) => {
   logger.error("redis_subscriber_error", {
@@ -191,7 +192,7 @@ io.on("connection", (socket) => {
 
   void socket.join(getUserRoomName(userId));
 
-  void markUserOnline(redisClient, userId)
+  void markUserOnline(redisClient, userId, socket.id)
     .then(async () => {
       if (becameOnline) {
         await emitOnlineUsers();
@@ -209,12 +210,21 @@ io.on("connection", (socket) => {
       });
     });
 
+  const heartbeat = setInterval(() => {
+    void markUserOnline(redisClient, userId, socket.id).catch((error: unknown) => {
+      logger.error("redis_presence_refresh_failed", {
+        errorName: error instanceof Error ? error.name : "UnknownError",
+      });
+    });
+  }, HEARTBEAT_INTERVAL_MS);
+
   socket.on("disconnect", () => {
+    clearInterval(heartbeat);
     const becameOffline = removeSocketForUser(userId, socket.id);
 
     if (!becameOffline) return;
 
-    void markUserOffline(redisClient, userId)
+    void markUserOffline(redisClient, userId, socket.id)
       .then(emitOnlineUsers)
       .catch((error: unknown) => {
         logger.error("redis_presence_delete_failed", {
