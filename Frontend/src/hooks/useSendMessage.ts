@@ -36,8 +36,7 @@ export function useSendMessage(): UseSendMessageResult {
 
       appendMessage(conversationId, response.data.data);
       return true;
-    } catch (requestError) {
-      console.error("Failed to send message", requestError);
+    } catch {
       return false;
     } finally {
       setLoading(false);
