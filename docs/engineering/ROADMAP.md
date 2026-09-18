@@ -18,7 +18,7 @@ This roadmap is the version-controlled execution plan for evolving the chat appl
 | 7 | PostgreSQL Backend & Persistence Foundation | PostgreSQL runtime foundation, migrations, connection management, repositories/data access, transactions, integrity enforcement, and real-PostgreSQL integration testing | **Complete; local verification passed** |
 | 8 | Production API / Message Pagination | Stable API contracts, authorization, bounded cursor pagination, consistent errors/statuses | Pending |
 | 9 | Authenticated Realtime / Socket Correctness | Server-authenticated Socket.IO, reconnect/multi-device correctness, deduplication | Pending |
-| 10 | Redis Distributed Use Cases | Justified Redis usage for presence, rate limiting, Socket.IO scaling, or demonstrated caching | Pending |
+| 10 | Redis Distributed Use Cases | Justified Redis usage for presence, rate limiting, Socket.IO scaling, or demonstrated caching | **Implementation complete; final local verification pending** |
 | 11 | Security Hardening | Public-exposure security review and regression tests | Pending |
 | 12 | Testing System | Unit, integration, realtime, E2E, contract, and load-testing foundations | Pending |
 | 13 | Docker / Local Development | Production-quality images and reproducible local infrastructure | Pending |
@@ -115,3 +115,19 @@ Final Phase 07 verification is complete based on the developer's local PostgreSQ
 - The persistence suite verified repository behavior, database constraints, session lifecycle, and concurrent direct-conversation uniqueness.
 
 The repository's Phase 07 GitHub Actions workflow also runs typecheck, build, and PostgreSQL integration tests against PostgreSQL 16. Remote CI status is not used as a substitute for the developer's local verification above.
+
+
+### Phase 10 implementation record
+
+Phase 10 introduced Redis only for the concrete distributed realtime problem identified after Phase 09:
+
+- `@socket.io/redis-adapter` provides cross-instance Socket.IO Pub/Sub fan-out.
+- Redis presence uses per-socket leases and a global online-user index.
+- Socket leases have a 60-second logical expiry and are refreshed by a 30-second heartbeat.
+- Per-user presence keys have a 120-second Redis key TTL as a stale-key cleanup backstop.
+- Multi-key presence transitions use Redis Lua scripts to avoid disconnect/heartbeat races between backend instances.
+- Redis is not used as persistent business-data storage.
+- Redis rate limiting and caching were evaluated but not introduced because the repository does not demonstrate a concrete requirement for either.
+- The cross-instance adapter integration test uses a dedicated Redis database and closes all Redis clients so the Node test runner exits cleanly.
+
+Final Phase 10 acceptance still requires the actual local verification commands and results to be recorded after the latest presence implementation.
