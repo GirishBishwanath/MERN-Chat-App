@@ -14,18 +14,6 @@ import {
 
 const redis = createClient({ url: config.redis.url });
 
-const waitFor = async (
-  predicate: () => Promise<boolean>,
-  timeoutMs = 2500
-): Promise<void> => {
-  const startedAt = Date.now();
-  while (!(await predicate())) {
-    if (Date.now() - startedAt >= timeoutMs) {
-      throw new Error("Timed out waiting for Redis state");
-    }
-    await new Promise((resolve) => setTimeout(resolve, 25));
-  }
-};
 
 test.before(async () => {
   await redis.connect();
@@ -93,14 +81,37 @@ test("removes a socket lease without affecting another socket", async () => {
   assert.equal(await isUserOnline(redis, userId), false);
 });
 
-test("returns only active users from a candidate set", async () => {
+test("returns active users across the distributed presence index", async () => {
   await markUserOnline(redis, "user-a", "socket-a");
   await markUserOnline(redis, "user-c", "socket-c");
 
-  assert.deepEqual(await getOnlineUserIds(redis, ["user-a", "user-b", "user-c"]), [
-    "user-a",
-    "user-c",
+  assert.deepEqual(await getOnlineUserIds(redis), ["user-a", "user-c"]);
+});
+
+test("removes a user from the global index when its final lease expires", async () => {
+  const userId = "redis-test-global-expiry";
+  const socketId = "redis-test-global-expiry-socket";
+
+  await redis.zAdd(`chatapp:presence:user:${userId}:sockets`, [
+    { score: Date.now() - 1, value: socketId },
   ]);
+  await redis.zAdd("chatapp:presence:users", [
+    { score: Date.now() - 1, value: userId },
+  ]);
+
+  assert.equal(await isUserOnline(redis, userId), false);
+  assert.deepEqual(await getOnlineUserIds(redis), []);
+});
+
+test("keeps another socket online during a concurrent-style final disconnect transition", async () => {
+  const userId = "redis-test-race";
+  await markUserOnline(redis, userId, "socket-a");
+  await markUserOnline(redis, userId, "socket-b");
+
+  await markUserOffline(redis, userId, "socket-a");
+
+  assert.deepEqual(await getOnlineUserIds(redis), [userId]);
+  assert.equal(await isUserOnline(redis, userId), true);
 });
 
 test("expired presence is treated as offline", async () => {
