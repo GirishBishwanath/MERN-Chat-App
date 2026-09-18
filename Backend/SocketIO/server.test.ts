@@ -8,7 +8,7 @@ import { io as createClient, type Socket as ClientSocket } from "socket.io-clien
 
 import { config } from "../config/env.js";
 import User from "../models/user.model.js";
-import { getUserRoomName, io, server } from "./server.js";
+import { initializeRedisAdapter, getUserRoomName, io, server, closeSocketInfrastructure } from "./server.js";
 
 interface SocketConnectError extends Error {
   data?: {
@@ -94,6 +94,7 @@ const waitForOnlineUsers = (
   });
 
 before(async () => {
+  await initializeRedisAdapter();
   await mongoose.connect(config.mongodbUri);
 
   const suffix = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -128,7 +129,7 @@ beforeEach(async () => {
 
 after(async () => {
   await waitFor(() => io.sockets.sockets.size === 0);
-  await new Promise<void>((resolve) => server.close(() => resolve()));
+  await closeSocketInfrastructure();
   await User.deleteMany({ email: { $regex: `^${TEST_EMAIL_PREFIX}` } });
   await mongoose.disconnect();
 });
