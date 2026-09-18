@@ -80,4 +80,18 @@ describe("error mapping", () => {
     assert.equal(response.statusCode, 409);
     assert.equal(response.body.code, ERROR_CODES.CONFLICT);
   });
+
+  test("maps oversized JSON bodies without exposing parser internals", () => {
+    const response = createResponse();
+    errorHandler(
+      { type: "entity.too.large" },
+      { requestId: "req-789", method: "POST", originalUrl: "/api/message/send/abc" },
+      response,
+      () => {}
+    );
+
+    assert.equal(response.statusCode, 413);
+    assert.equal(response.body.code, ERROR_CODES.REQUEST_TOO_LARGE);
+    assert.equal(response.body.error, "Request payload is too large");
+  });
 });
