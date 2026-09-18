@@ -24,9 +24,9 @@ const connect = (url: string): Promise<ClientSocket> =>
     socket.once("connect_error", reject);
   });
 
-test("Redis adapter delivers room events across two Socket.IO instances", async (t) => {
+test("Redis adapter delivers room events across two Socket.IO instances", async () => {
   const redis = getRedisClient();
-  }
+  if (!redis.isOpen) await redis.connect();
 
   const instanceA = createTestInstance();
   const instanceB = createTestInstance();
