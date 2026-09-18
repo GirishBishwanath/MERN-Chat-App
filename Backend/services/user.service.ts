@@ -12,6 +12,11 @@ import {
   type UserId,
 } from "../repositories/user.repository.js";
 import type { UserRepository } from "../repositories/user.repository.contract.js";
+import {
+  MAX_EMAIL_LENGTH,
+  MAX_FULLNAME_LENGTH,
+  MAX_PASSWORD_LENGTH,
+} from "../validation/user.schemas.js";
 
 export interface RegisterUserInput {
   fullname: string;
@@ -70,8 +75,13 @@ export const createUserService = (
 
     if (
       fullname.trim().length < 2 ||
+      fullname.trim().length > MAX_FULLNAME_LENGTH ||
+      email.trim().length > MAX_EMAIL_LENGTH ||
       !email.includes("@") ||
-      password.length < 8
+      password.length < 8 ||
+      password.length > MAX_PASSWORD_LENGTH ||
+      confirmPassword.length < 8 ||
+      confirmPassword.length > MAX_PASSWORD_LENGTH
     ) {
       throw new AppError("Invalid signup data", 400, ERROR_CODES.VALIDATION_ERROR);
     }
@@ -99,7 +109,14 @@ export const createUserService = (
     email: string,
     password: string
   ): Promise<UserDocument> => {
-    if (typeof email !== "string" || typeof password !== "string") {
+    if (
+      typeof email !== "string" ||
+      typeof password !== "string" ||
+      email.trim().length === 0 ||
+      email.trim().length > MAX_EMAIL_LENGTH ||
+      password.length === 0 ||
+      password.length > MAX_PASSWORD_LENGTH
+    ) {
       throw new AppError(
         "Invalid user credential",
         401,
