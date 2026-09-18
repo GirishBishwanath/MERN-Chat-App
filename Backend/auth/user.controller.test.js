@@ -127,7 +127,7 @@ describe("authentication controllers", () => {
     });
 
     const originalSessionCreate = Session.create;
-    Session.create = async (session) => session;
+    Session.create = async (session) => ({ _id: "507f1f77bcf86cd799439013", ...session });
     const response = createResponse();
 
     try {
@@ -148,7 +148,7 @@ describe("authentication controllers", () => {
     const repository = createServiceRepository();
     const service = createUserService(repository);
     const originalSessionCreate = Session.create;
-    Session.create = async (session) => session;
+    Session.create = async (session) => ({ _id: "507f1f77bcf86cd799439013", ...session });
     const response = createResponse();
 
     try {
