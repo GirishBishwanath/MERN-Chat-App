@@ -58,7 +58,10 @@ describe("access authentication", () => {
     });
 
     assert.equal(response.statusCode, 401);
-    assert.deepEqual(response.body, { error: "Authentication required" });
+    assert.deepEqual(response.body, {
+      error: "Authentication required",
+      code: "UNAUTHENTICATED",
+    });
   });
 
   test("rejects a signed token whose backing session has been revoked", async () => {
