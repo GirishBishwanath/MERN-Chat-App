@@ -6,22 +6,40 @@ import secureRoute from "../middleware/secureRoute.js";
 
 process.env.JWT_SECRET = "test-only-auth-secret";
 
+const userId = "507f1f77bcf86cd799439011";
+const sessionId = "507f1f77bcf86cd799439012";
+
 describe("access authentication", () => {
-  test("verifies a valid access token", () => {
-    const token = jwt.sign({ userId: "user-123" }, process.env.JWT_SECRET, {
-      expiresIn: "15m",
-    });
+  test("verifies a valid session-bound access token", () => {
+    const token = jwt.sign(
+      { userId, sessionId },
+      process.env.JWT_SECRET,
+      { expiresIn: "15m", algorithm: "HS256" }
+    );
 
     const payload = verifyAccessToken(token);
-    assert.equal(payload.userId, "user-123");
+    assert.equal(payload.userId, userId);
+    assert.equal(payload.sessionId, sessionId);
   });
 
   test("rejects an expired access token", () => {
-    const token = jwt.sign({ userId: "user-123" }, process.env.JWT_SECRET, {
-      expiresIn: -1,
-    });
+    const token = jwt.sign(
+      { userId, sessionId },
+      process.env.JWT_SECRET,
+      { expiresIn: -1, algorithm: "HS256" }
+    );
 
     assert.throws(() => verifyAccessToken(token), { name: "TokenExpiredError" });
+  });
+
+  test("rejects access tokens without a valid session id", () => {
+    const token = jwt.sign(
+      { userId },
+      process.env.JWT_SECRET,
+      { expiresIn: "15m", algorithm: "HS256" }
+    );
+
+    assert.throws(() => verifyAccessToken(token));
   });
 
   test("rejects requests without an access cookie", async () => {
@@ -34,11 +52,41 @@ describe("access authentication", () => {
     assert.deepEqual(response.body, { error: "Authentication required" });
   });
 
+  test("rejects a signed token whose backing session has been revoked", async () => {
+    const token = jwt.sign(
+      { userId, sessionId },
+      process.env.JWT_SECRET,
+      { expiresIn: "15m", algorithm: "HS256" }
+    );
+    const response = createResponse();
+
+    let nextError;
+    await secureRoute(
+      { cookies: { accessToken: token } },
+      response,
+      (error) => {
+        nextError = error;
+      },
+      {
+        findSession: async () => null,
+        findUser: async () => ({
+          _id: userId,
+          fullname: "Test User",
+          email: "test@example.com",
+        }),
+      }
+    );
+
+    assert.equal(nextError?.code, "UNAUTHENTICATED");
+  });
+
   test("accepts a valid access session and attaches the user", async () => {
-    const user = { _id: "user-123", fullname: "Test User", email: "test@example.com" };
-    const token = jwt.sign({ userId: "user-123" }, process.env.JWT_SECRET, {
-      expiresIn: "15m",
-    });
+    const user = { _id: userId, fullname: "Test User", email: "test@example.com" };
+    const token = jwt.sign(
+      { userId, sessionId },
+      process.env.JWT_SECRET,
+      { expiresIn: "15m", algorithm: "HS256" }
+    );
     const req = { cookies: { accessToken: token } };
     const response = createResponse();
     let nextCalled = false;
@@ -49,7 +97,10 @@ describe("access authentication", () => {
       () => {
         nextCalled = true;
       },
-      { findUser: async () => user }
+      {
+        findSession: async () => ({ _id: sessionId }),
+        findUser: async () => user,
+      }
     );
 
     assert.equal(nextCalled, true);
