@@ -123,10 +123,7 @@ const removeSocketForUser = (userId: string, socketId: string): boolean => {
 };
 
 const emitOnlineUsers = async (): Promise<void> => {
-  const onlineUserIds = await getOnlineUserIds(
-    redisClient,
-    Array.from(socketsByUser.keys())
-  );
+  const onlineUserIds = await getOnlineUserIds(redisClient);
   io.emit("getOnlineUsers", onlineUserIds);
 };
 
@@ -199,10 +196,7 @@ io.on("connection", (socket) => {
         return;
       }
 
-      socket.emit(
-        "getOnlineUsers",
-        await getOnlineUserIds(redisClient, Array.from(socketsByUser.keys()))
-      );
+      socket.emit("getOnlineUsers", await getOnlineUserIds(redisClient));
     })
     .catch((error: unknown) => {
       logger.error("redis_presence_set_failed", {
