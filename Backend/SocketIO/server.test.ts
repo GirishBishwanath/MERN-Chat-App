@@ -168,7 +168,7 @@ test("rejects socket connections without an access token", async () => {
 test("rejects invalid and expired access tokens with distinct auth errors", async () => {
   await expectConnectionError("not-a-jwt", "AUTH_INVALID");
 
-  const expiredToken = issueToken(userA._id, -1);
+  const expiredToken = issueToken(userA._id, sessionA, -1);
   await expectConnectionError(expiredToken, "AUTH_EXPIRED");
 });
 
