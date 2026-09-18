@@ -8,6 +8,7 @@ import { io as createClient, type Socket as ClientSocket } from "socket.io-clien
 
 import { config } from "../config/env.js";
 import User from "../models/user.model.js";
+import Session from "../models/session.model.js";
 import { initializeRedisAdapter, getUserRoomName, io, server, closeSocketInfrastructure } from "./server.js";
 
 interface SocketConnectError extends Error {
@@ -20,13 +21,15 @@ const TEST_EMAIL_PREFIX = "socket-test-";
 
 let userA: { _id: mongoose.Types.ObjectId };
 let userB: { _id: mongoose.Types.ObjectId };
+let sessionA: mongoose.Types.ObjectId;
+let sessionB: mongoose.Types.ObjectId;
 let baseUrl: string;
 
 const issueToken = (
   userId: mongoose.Types.ObjectId,
   expiresIn: jwt.SignOptions["expiresIn"] = "15m"
 ): string =>
-  jwt.sign({ userId: userId.toString() }, config.jwtSecret, { expiresIn });
+  jwt.sign(\n    { userId: userId.toString(), sessionId: sessionId.toString() },\n    config.jwtSecret,\n    { expiresIn, algorithm: "HS256" }\n  );
 
 const connectClient = (
   token?: string,
@@ -130,7 +133,7 @@ beforeEach(async () => {
 after(async () => {
   await waitFor(() => io.sockets.sockets.size === 0);
   await closeSocketInfrastructure();
-  await User.deleteMany({ email: { $regex: `^${TEST_EMAIL_PREFIX}` } });
+  await Session.deleteMany({ _id: { $in: [sessionA, sessionB] } });\n  await User.deleteMany({ email: { $regex: `^${TEST_EMAIL_PREFIX}` } });
   await mongoose.disconnect();
 });
 
@@ -146,7 +149,7 @@ test("rejects invalid and expired access tokens with distinct auth errors", asyn
 });
 
 test("authenticates from the access cookie and ignores client identity query parameters", async () => {
-  const socket = await connectClient(issueToken(userA._id), {
+  const socket = await connectClient(issueToken(userA._id, sessionA), {
     userId: userB._id.toString(),
   });
 
@@ -169,9 +172,9 @@ test("authenticates from the access cookie and ignores client identity query par
 });
 
 test("keeps a user online until the final socket disconnects", async () => {
-  const socketA1 = await connectClient(issueToken(userA._id));
-  const socketA2 = await connectClient(issueToken(userA._id));
-  const observer = await connectClient(issueToken(userB._id));
+  const socketA1 = await connectClient(issueToken(userA._id, sessionA));
+  const socketA2 = await connectClient(issueToken(userA._id, sessionA));
+  const observer = await connectClient(issueToken(userB._id, sessionB));
   let sawPrematureOffline = false;
 
   const onOnlineUsers = (userIds: string[]) => {
@@ -221,7 +224,7 @@ test("keeps a user online until the final socket disconnects", async () => {
 });
 
 test("re-authenticates a new socket on reconnect instead of reusing client identity", async () => {
-  const socket = await connectClient(issueToken(userA._id));
+  const socket = await connectClient(issueToken(userA._id, sessionA));
 
   try {
     const firstSocketId = socket.id;
@@ -233,7 +236,7 @@ test("re-authenticates a new socket on reconnect instead of reusing client ident
     );
 
     socket.io.opts.extraHeaders = {
-      Cookie: `accessToken=${encodeURIComponent(issueToken(userB._id))}`,
+      Cookie: `accessToken=${encodeURIComponent(issueToken(userB._id, sessionB))}`,
     };
     socket.disconnect();
     socket.connect();
