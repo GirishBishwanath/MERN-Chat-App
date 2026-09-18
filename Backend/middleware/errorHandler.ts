@@ -49,6 +49,12 @@ export const errorHandler: ErrorRequestHandler = (
       400,
       ERROR_CODES.VALIDATION_ERROR
     );
+  } else if (isRecord(error) && error.type === "entity.too.large") {
+    appError = new AppError(
+      "Request payload is too large",
+      413,
+      ERROR_CODES.REQUEST_TOO_LARGE
+    );
   } else if (error instanceof Error && error.message === "CORS policy violation") {
     appError = new AppError("Origin is not allowed", 403, ERROR_CODES.FORBIDDEN);
   } else if (error instanceof jwt.TokenExpiredError || error instanceof jwt.JsonWebTokenError) {
