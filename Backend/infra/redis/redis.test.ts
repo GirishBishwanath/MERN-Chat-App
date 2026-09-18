@@ -108,13 +108,8 @@ test("expired presence is treated as offline", async () => {
   const socketId = "redis-test-expiry-socket";
 
   await redis.zAdd(`chatapp:presence:user:${userId}:sockets`, [
-    { score: Date.now() + 1000, value: socketId },
-  ]);
-  await redis.zAdd(`chatapp:presence:user:${userId}:sockets`, [
-    { score: Date.now() - 1, value: "expired-socket" },
+    { score: Date.now() - 1, value: socketId },
   ]);
 
-  assert.equal(await isUserOnline(redis, userId), true);
-  await redis.del(`chatapp:presence:user:${userId}:sockets`);
   assert.equal(await isUserOnline(redis, userId), false);
 });
