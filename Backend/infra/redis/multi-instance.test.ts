@@ -3,7 +3,7 @@ import http from "node:http";
 import test from "node:test";
 
 import { Server } from "socket.io";
-import { createClient } from "redis";
+import { createClient as createRedisClient } from "redis";
 import { io as createClient, type Socket as ClientSocket } from "socket.io-client";
 
 import { getUserRoomName } from "../../SocketIO/server.js";
@@ -28,7 +28,7 @@ const connect = (url: string): Promise<ClientSocket> =>
 test("Redis adapter delivers room events across two Socket.IO instances", async () => {
   // Use a dedicated Redis DB so this integration test cannot interfere with
   // the presence tests when Node runs test files concurrently.
-  const redis = createClient({ url: config.redis.url, database: 14 });
+  const redis = createRedisClient({ url: config.redis.url, database: 14 });
   await redis.connect();
 
   const instanceA = createTestInstance();
