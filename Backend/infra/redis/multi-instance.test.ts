@@ -3,10 +3,11 @@ import http from "node:http";
 import test from "node:test";
 
 import { Server } from "socket.io";
+import { createClient } from "redis";
 import { io as createClient, type Socket as ClientSocket } from "socket.io-client";
 
 import { getUserRoomName } from "../../SocketIO/server.js";
-import { getRedisClient } from "./client.js";
+import { config } from "../../config/env.js";
 
 const createTestInstance = () => {
   const server = http.createServer();
@@ -25,9 +26,10 @@ const connect = (url: string): Promise<ClientSocket> =>
   });
 
 test("Redis adapter delivers room events across two Socket.IO instances", async () => {
-  const redis = getRedisClient();
-  if (!redis.isOpen) await redis.connect();
-  await redis.flushDb();
+  // Use a dedicated Redis DB so this integration test cannot interfere with
+  // the presence tests when Node runs test files concurrently.
+  const redis = createClient({ url: config.redis.url, database: 14 });
+  await redis.connect();
 
   const instanceA = createTestInstance();
   const instanceB = createTestInstance();
@@ -76,6 +78,7 @@ test("Redis adapter delivers room events across two Socket.IO instances", async 
       redisSubscriberA.isOpen ? redisSubscriberA.quit() : Promise.resolve(),
       redisSubscriberB.isOpen ? redisSubscriberB.quit() : Promise.resolve(),
       redisPublisherB.isOpen ? redisPublisherB.quit() : Promise.resolve(),
+      redis.isOpen ? redis.quit() : Promise.resolve(),
       new Promise<void>((resolve) => instanceA.server.close(() => resolve())),
       new Promise<void>((resolve) => instanceB.server.close(() => resolve())),
     ]);
