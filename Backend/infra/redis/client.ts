@@ -1,9 +1,9 @@
-import { createClient, type RedisClientType } from "redis";
+import { createClient } from "redis";
 
 import { config } from "../../config/env.js";
 import { logger } from "../../utils/logger.js";
 
-export type RedisClient = RedisClientType;
+export type RedisClient = ReturnType<typeof createClient>;
 
 const redisClient = createClient({ url: config.redis.url });
 
