@@ -39,22 +39,26 @@ test.beforeEach(async () => {
   await redis.flushDb();
 });
 
-test("marks a user online with a bounded TTL", async () => {
+test("marks a user online with a bounded lease", async () => {
   const userId = "redis-test-online";
+  const socketId = "redis-test-socket";
 
-  await markUserOnline(redis, userId);
+  await markUserOnline(redis, userId, socketId);
 
   assert.equal(await isUserOnline(redis, userId), true);
-  const ttl = await redis.ttl(`chatapp:presence:user:${userId}`);
-  assert.ok(ttl > 0);
-  assert.ok(ttl <= PRESENCE_TTL_SECONDS);
+  const expiry = await redis.zScore(
+    `chatapp:presence:user:${userId}:sockets`,
+    socketId
+  );
+  assert.ok(expiry);
+  assert.ok(expiry > Date.now());
+  assert.ok(expiry - Date.now() <= PRESENCE_TTL_SECONDS * 1000);
 });
 
 test("refreshes the presence lease for an already-connected socket", async () => {
   const userId = "redis-test-refresh";
   const socketId = "redis-test-refresh-socket";
 
-  await redis.set(`chatapp:presence:user:${userId}:sockets`, "stale", { EX: 1 });
   await markUserOnline(redis, userId, socketId);
 
   const firstExpiry = await redis.zScore(
