@@ -114,6 +114,19 @@ test("keeps another socket online during a concurrent-style final disconnect tra
   assert.equal(await isUserOnline(redis, userId), true);
 });
 
+
+test("emits the global online-user index after the final socket disconnects", async () => {
+  const userId = "redis-test-final-disconnect";
+  await markUserOnline(redis, userId, "socket-a");
+  await markUserOnline(redis, userId, "socket-b");
+
+  await markUserOffline(redis, userId, "socket-a");
+  assert.deepEqual(await getOnlineUserIds(redis), [userId]);
+
+  await markUserOffline(redis, userId, "socket-b");
+  assert.deepEqual(await getOnlineUserIds(redis), []);
+});
+
 test("expired presence is treated as offline", async () => {
   const userId = "redis-test-expiry";
   const socketId = "redis-test-expiry-socket";
