@@ -3,7 +3,7 @@ import express from "express";
 import { Server } from "socket.io";
 import { createAdapter } from "@socket.io/redis-adapter";
 
-import { verifyAccessToken } from "../auth/session.js";
+import { findActiveSessionById, verifyAccessToken } from "../auth/session.js";
 import { findPublicById } from "../repositories/user.repository.js";
 import {
   closeRedis,
@@ -47,7 +47,7 @@ export const io = new Server<
 >(server, {
   adapter: createAdapter(redisClient, redisSubscriber),
   cors: {
-    origin: ["https://mern-chat-app-jade.vercel.app", "http://localhost:3001"],
+    origin: config.corsOrigins,
     methods: ["GET", "POST"],
     credentials: true,
   },
@@ -136,7 +136,13 @@ io.use(async (socket, next) => {
   }
 
   try {
-    const { userId } = verifyAccessToken(token);
+    const { userId, sessionId } = verifyAccessToken(token);
+    const session = await findActiveSessionById(sessionId, userId);
+    if (!session) {
+      next(createSocketAuthError("AUTH_INVALID", "Invalid authentication"));
+      return;
+    }
+
     const user = await findPublicById(userId);
 
     if (!user) {
