@@ -4,9 +4,7 @@ dotenv.config();
 
 const required = (name: string): string => {
   const value = process.env[name]?.trim();
-  if (!value) {
-    throw new Error(`${name} environment variable is not configured`);
-  }
+  if (!value) throw new Error(name + " environment variable is not configured");
   return value;
 };
 
@@ -15,7 +13,7 @@ const optionalPort = (name: string, fallback: number): number => {
   if (!raw) return fallback;
   const value = Number.parseInt(raw, 10);
   if (!Number.isInteger(value) || value < 1 || value > 65535) {
-    throw new Error(`${name} environment variable must be a valid TCP port`);
+    throw new Error(name + " environment variable must be a valid TCP port");
   }
   return value;
 };
@@ -25,35 +23,45 @@ const positiveInt = (name: string, fallback: number): number => {
   if (!raw) return fallback;
   const value = Number.parseInt(raw, 10);
   if (!Number.isInteger(value) || value < 1) {
-    throw new Error(`${name} environment variable must be a positive integer`);
+    throw new Error(name + " environment variable must be a positive integer");
   }
   return value;
 };
 
-const port = optionalPort("PORT", 4002);
+const parseCorsOrigins = (): string[] => {
+  const rawOrigins = (process.env.CORS_ORIGINS || "http://localhost:3001")
+    .split(",").map((origin) => origin.trim()).filter(Boolean);
+  if (rawOrigins.length === 0) {
+    throw new Error("CORS_ORIGINS environment variable must contain at least one origin");
+  }
+  return [...new Set(rawOrigins.map((origin) => {
+    let parsed: URL;
+    try { parsed = new URL(origin); } catch {
+      throw new Error("CORS_ORIGINS contains an invalid origin");
+    }
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      throw new Error("CORS_ORIGINS must contain only HTTP(S) origins");
+    }
+    return parsed.origin;
+  }))];
+};
 
-const corsOrigins = (process.env.CORS_ORIGINS || "http://localhost:3001")
-  .split(",")
-  .map((origin: string) => origin.trim())
-  .filter(Boolean);
-
-if (corsOrigins.length === 0) {
-  throw new Error("CORS_ORIGINS environment variable must contain at least one origin");
+const nodeEnv = process.env.NODE_ENV?.trim().toLowerCase() || "development";
+const jwtSecret = required("JWT_SECRET");
+if (nodeEnv === "production" && jwtSecret.length < 32) {
+  throw new Error("JWT_SECRET must be at least 32 characters in production");
 }
 
-const nodeEnv = process.env.NODE_ENV || "development";
-const postgresSsl = process.env.POSTGRES_SSL?.trim().toLowerCase() === "true";
-const redisUrl = process.env.REDIS_URL?.trim() || "redis://127.0.0.1:6379";
+const redisUrl = nodeEnv === "production"
+  ? required("REDIS_URL")
+  : process.env.REDIS_URL?.trim() || "redis://127.0.0.1:6379";
 
 export const config = Object.freeze({
   nodeEnv,
-  port,
-  mongodbUri: required("MONGODB_URI"),
-  jwtSecret: required("JWT_SECRET"),
-  corsOrigins,
-  redis: Object.freeze({
-    url: redisUrl,
-  }),
+  port: optionalPort("PORT", 4002),
+  jwtSecret,
+  corsOrigins: parseCorsOrigins(),
+  redis: Object.freeze({ url: redisUrl }),
   postgres: Object.freeze({
     host: process.env.POSTGRES_HOST?.trim() || "127.0.0.1",
     port: optionalPort("POSTGRES_PORT", 5432),
@@ -63,7 +71,8 @@ export const config = Object.freeze({
     maxConnections: positiveInt("POSTGRES_MAX_CONNECTIONS", 10),
     idleTimeoutMs: positiveInt("POSTGRES_IDLE_TIMEOUT_MS", 10_000),
     connectionTimeoutMs: positiveInt("POSTGRES_CONNECTION_TIMEOUT_MS", 5_000),
-    ssl: postgresSsl ? { rejectUnauthorized: nodeEnv === "production" } : false,
+    ssl: process.env.POSTGRES_SSL?.trim().toLowerCase() === "true"
+      ? { rejectUnauthorized: nodeEnv === "production" } : false,
   }),
 });
 

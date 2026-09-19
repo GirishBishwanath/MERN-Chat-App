@@ -1,5 +1,4 @@
 import express from "express";
-import mongoose from "mongoose";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 
@@ -10,60 +9,46 @@ import messageRoute from "./routes/message.route.js";
 import healthRoute from "./routes/health.route.js";
 import { app, closeSocketInfrastructure, initializeRedisAdapter, server } from "./SocketIO/server.js";
 import { requestContext } from "./middleware/requestContext.js";
+import { securityHeaders } from "./middleware/securityHeaders.js";
+import { verifyRequestOrigin } from "./middleware/verifyOrigin.js";
 import { notFoundHandler, errorHandler } from "./middleware/errorHandler.js";
 import { logger } from "./utils/logger.js";
 
+app.disable("x-powered-by");
 app.use(requestContext);
-app.use(
-  cors({
-    origin: (origin, callback) => {
-      if (!origin || config.corsOrigins.includes(origin)) {
-        return callback(null, true);
-      }
-      return callback(new Error("CORS policy violation"));
-    },
-    credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: [
-      "Content-Type",
-      "Authorization",
-      "X-Requested-With",
-      "Accept",
-      "X-Request-Id",
-    ],
-  })
-);
-app.use(express.json());
+app.use(securityHeaders);
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin || config.corsOrigins.includes(origin)) return callback(null, true);
+    return callback(new Error("CORS policy violation"));
+  },
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Accept", "X-Request-Id"],
+}));
+app.use(express.json({ limit: "16kb" }));
 app.use(cookieParser());
 
 app.use("/health", healthRoute);
+app.use(verifyRequestOrigin);
 app.use("/api/user", userRoute);
 app.use("/api/message", messageRoute);
-
 app.use(notFoundHandler);
 app.use(errorHandler);
 
 const startServer = async (): Promise<void> => {
-  await mongoose.connect(config.mongodbUri);
-  logger.info("database_connected", { database: "mongodb" });
-
   await verifyPostgresConnection();
   logger.info("database_connected", { database: "postgresql" });
-
   await initializeRedisAdapter();
   logger.info("redis_adapter_initialized");
-
-  server.listen(config.port, "0.0.0.0", () => {
-    logger.info("server_started", { port: config.port });
-  });
+  server.listen(config.port, "0.0.0.0", () => logger.info("server_started", { port: config.port }));
 };
 
 const shutdown = async (signal: string): Promise<void> => {
   logger.info("server_shutdown_started", { signal });
-
   try {
     await closeSocketInfrastructure();
-    await Promise.all([mongoose.disconnect(), closePostgresPool()]);
+    await closePostgresPool();
     logger.info("server_shutdown_completed");
     process.exit(0);
   } catch (error: unknown) {
@@ -76,10 +61,7 @@ const shutdown = async (signal: string): Promise<void> => {
 
 process.once("SIGTERM", () => void shutdown("SIGTERM"));
 process.once("SIGINT", () => void shutdown("SIGINT"));
-
 void startServer().catch((error: unknown) => {
-  logger.error("server_start_failed", {
-    errorName: error instanceof Error ? error.name : "UnknownError",
-  });
+  logger.error("server_start_failed", { errorName: error instanceof Error ? error.name : "UnknownError" });
   process.exit(1);
 });

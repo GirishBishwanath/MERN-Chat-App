@@ -36,7 +36,7 @@ The access token is a stateless JWT with a 15-minute lifetime, while refresh ses
 
 ## Integration coverage
 
-`Backend/SocketIO/server.test.ts` exercises the real Socket.IO server with Socket.IO clients and the test MongoDB/PostgreSQL persistence paths. Coverage includes:
+`Backend/SocketIO/server.test.ts` exercises the real Socket.IO server with Socket.IO clients and the PostgreSQL persistence paths. Coverage includes:
 
 - missing, invalid, and expired access credentials;
 - server-derived identity and resistance to client `userId` impersonation;
@@ -44,7 +44,7 @@ The access token is a stateless JWT with a 15-minute lifetime, while refresh ses
 - re-authentication on a new socket connection;
 - persisted REST-first message delivery to the receiver's server-managed user room.
 
-The backend test command is `npm run test:socket`. It requires the backend test MongoDB and PostgreSQL services already used by the existing integration tests.
+The backend test command is `npm run test:socket`. It requires the backend PostgreSQL and Redis services already used by the existing integration tests.
 
 ## Deployment boundary
 

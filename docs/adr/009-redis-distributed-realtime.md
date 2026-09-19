@@ -26,7 +26,7 @@ Each socket lease is valid for 60 seconds and is refreshed by the Socket.IO hear
 
 The existing in-process `Map<string, Set<string>>` remains only as the local process's socket membership index for local lifecycle decisions. It is not treated as authoritative distributed presence. Redis is the distributed ephemeral representation of online state.
 
-PostgreSQL remains the persistent relational datastore and MongoDB remains present in the current live application boundary established before Phase 10. Redis does not store users, conversations, or messages.
+PostgreSQL remains the only persistent relational datastore. Redis does not store users, conversations, or messages. Redis does not store users, conversations, or messages.
 
 ## Alternatives considered
 
