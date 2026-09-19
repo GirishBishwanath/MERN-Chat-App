@@ -96,7 +96,10 @@ test("signup establishes an authenticated session and /me is protected by that s
 });
 
 test("duplicate signup is rejected by the application/database contract", async () => {
-  const response = await request("/api/user/signup", json(alice));
+  const firstResponse = await request("/api/user/signup", json(bob));
+  assert.equal(firstResponse.status, 201);
+
+  const response = await request("/api/user/signup", json(bob));
   assert.equal(response.status, 409);
   const body = await response.json() as { code: string };
   assert.equal(body.code, "CONFLICT");
