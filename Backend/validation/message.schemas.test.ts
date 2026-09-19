@@ -8,7 +8,7 @@ import {
   sendMessageSchema,
 } from "./message.schemas.js";
 
-const validId = "507f1f77bcf86cd799439011";
+const validId = "550e8400-e29b-41d4-a716-446655440000";
 
 const request = (input: {
   id?: string;
@@ -56,7 +56,7 @@ test("send validation enforces receiver id and message length", () => {
     false
   );
   assert.equal(
-    sendMessageSchema(request({ id: "not-an-object-id", body: { message: "hello" } })).valid,
+    sendMessageSchema(request({ id: "not-a-uuid", body: { message: "hello" } })).valid,
     false
   );
 });

@@ -9,6 +9,12 @@ services:
     startCommand: cd Backend && npm start
     autoDeploy: true
     envVars:
-      - key: MONGODB_URI
+      - key: POSTGRES_HOST
+      - key: POSTGRES_PORT
+      - key: POSTGRES_DATABASE
+      - key: POSTGRES_USER
+      - key: POSTGRES_PASSWORD
+      - key: POSTGRES_SSL
+      - key: REDIS_URL
       - key: JWT_SECRET
       - key: CORS_ORIGINS

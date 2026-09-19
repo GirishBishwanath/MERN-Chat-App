@@ -1,5 +1,5 @@
 import express, { type Request, type Response } from "express";
-import mongoose from "mongoose";
+import { verifyPostgresConnection } from "../db/pool.js";
 
 const router = express.Router();
 
@@ -7,13 +7,13 @@ router.get("/live", (_req: Request, res: Response) => {
   res.status(200).json({ status: "ok" });
 });
 
-router.get("/ready", (_req: Request, res: Response) => {
-  const ready = mongoose.connection.readyState === 1;
-
-  return res.status(ready ? 200 : 503).json({
-    status: ready ? "ready" : "not_ready",
-    database: ready ? "connected" : "disconnected",
-  });
+router.get("/ready", async (_req: Request, res: Response) => {
+  try {
+    await verifyPostgresConnection();
+    return res.status(200).json({ status: "ready", database: "connected" });
+  } catch {
+    return res.status(503).json({ status: "not_ready", database: "disconnected" });
+  }
 });
 
 export default router;

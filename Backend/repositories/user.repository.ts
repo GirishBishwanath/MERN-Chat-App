@@ -1,35 +1,52 @@
-import type { Types } from "mongoose";
+import {
+  createUser as createPostgresUser,
+  findUserById,
+  findUserByNormalizedEmail,
+  listUsersExcept,
+  type PostgresUser,
+} from "./postgres/user.repository.js";
 
-import User, { type User as UserRecord, type UserDocument } from "../models/user.model.js";
-
-export type UserId = Types.ObjectId | string;
+export type UserId = string;
+export type UserRecord = PostgresUser;
+export type UserDocument = PostgresUser;
 
 export interface PublicUser {
-  _id: Types.ObjectId;
+  _id: string;
   fullname: string;
   email: string;
 }
 
-export const findByEmail = (
-  email: string,
-  includePassword = false
-): Promise<UserDocument | null> => {
-  const query = User.findOne({ email });
-  return (includePassword ? query.select("+password") : query).exec();
+const toPublicUser = (user: PostgresUser): PublicUser => ({
+  _id: user.id, fullname: user.fullname, email: user.email,
+});
+
+export const findByEmail = async (
+  email: string, includePassword = false
+): Promise<PostgresUser | null> => {
+  const user = await findUserByNormalizedEmail(email);
+  if (!user) return null;
+  return includePassword ? user : { ...user, passwordHash: "" };
 };
 
-export const createUser = (
-  data: Pick<UserRecord, "fullname" | "email" | "password">
-): Promise<UserDocument> => User.create(data);
+export const createUser = async (
+  data: { fullname: string; email: string; password: string }
+): Promise<PostgresUser> => createPostgresUser({
+  fullname: data.fullname, email: data.email, passwordHash: data.password,
+});
 
-export const findPublicById = (id: UserId): Promise<PublicUser | null> =>
-  User.findById(id).select("_id fullname email").lean<PublicUser>().exec();
+export const findPublicById = async (id: UserId): Promise<PublicUser | null> => {
+  const user = await findUserById(id);
+  return user ? toPublicUser(user) : null;
+};
 
-export const findById = (id: UserId): Promise<Pick<PublicUser, "_id"> | null> =>
-  User.findById(id).select("_id").lean<Pick<PublicUser, "_id">>().exec();
+export const findById = async (
+  id: UserId
+): Promise<Pick<PublicUser, "_id"> | null> => {
+  const user = await findUserById(id);
+  return user ? { _id: user.id } : null;
+};
 
-export const listExcept = (userId: UserId): Promise<PublicUser[]> =>
-  User.find({ _id: { $ne: userId } })
-    .select("_id fullname email")
-    .lean<PublicUser[]>()
-    .exec();
+export const listExcept = async (userId: UserId): Promise<PublicUser[]> =>
+  (await listUsersExcept(userId)).map((user) => ({
+    _id: user.id, fullname: user.fullname, email: user.email,
+  }));
