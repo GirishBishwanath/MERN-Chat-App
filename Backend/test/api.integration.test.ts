@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import http from "node:http";
-import test from "node:test";
+import test, { before, after } from "node:test";
 
 const { app } = await import("../app.js");
 const { postgresPool } = await import("../db/pool.js");
