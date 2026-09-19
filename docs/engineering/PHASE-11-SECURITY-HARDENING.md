@@ -45,6 +45,22 @@ The key is derived from the normalized email and hashed before being stored, avo
 
 ## Verification status
 
-Repository changes and focused test code were inspected through GitHub. Local npm execution must be completed in the project's normal checkout before this phase is marked runtime-verified.
+Phase 11 was runtime-verified in the normal local checkout on the merged `feat/security-hardening` branch after the PostgreSQL runtime cutover.
 
-The implementation should not be described as fully runtime-verified until the project's normal local or CI test environment executes the focused security suite and regression suite.
+The following checks were executed successfully:
+
+- `npm run typecheck` — passed.
+- `npm run test` — 17/17 passed.
+- `npm run test:message` — 6/6 passed.
+- `npm run test:postgres` — 12/12 passed (3 migration tests + 9 persistence tests).
+- `npm run test:socket` — 5/5 passed.
+- `npm run test:redis` — 9/9 passed.
+- `npm run test:security` — 21/21 passed.
+- `npm run build` — passed.
+- MongoDB/Mongoose audit returned no matches for `mongoose`, `mongodb`, or `MONGODB`.
+- ObjectId audit returned no matches for `Types.ObjectId` or `ObjectId`.
+- `npm ls mongoose mongodb` returned an empty dependency tree.
+- `git diff --check` returned no whitespace errors.
+- Final repository status was clean and synchronized with `origin/feat/security-hardening`.
+
+The dependency vulnerability state was not re-audited because `npm audit` could not be executed from the local checkout. This remains an explicit verification gap rather than a claim of vulnerability-free dependencies.
