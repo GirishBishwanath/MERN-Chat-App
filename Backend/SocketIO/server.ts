@@ -53,7 +53,9 @@ const removeSocketForUser = (userId: string, socketId: string): boolean => {
   sockets.delete(socketId); if (sockets.size > 0) return false;
   socketsByUser.delete(userId); return true;
 };
-const emitOnlineUsers = async (): Promise<void> => {\n  io.emit("getOnlineUsers", await getOnlineUserIds(redisClient));\n};
+const emitOnlineUsers = async (): Promise<void> => {
+  io.emit("getOnlineUsers", await getOnlineUserIds(redisClient));
+};
 
 io.use(async (socket, next) => {
   const token = getCookie(socket.handshake.headers.cookie, "accessToken");
