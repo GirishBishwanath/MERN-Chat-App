@@ -45,6 +45,6 @@ The key is derived from the normalized email and hashed before being stored, avo
 
 ## Verification status
 
-Repository changes and focused test code were inspected through GitHub. Local npm execution was not possible in the current environment because the container cannot reach the required repository/network resources.
+Repository changes and focused test code were inspected through GitHub. Local npm execution must be completed in the project's normal checkout before this phase is marked runtime-verified.
 
 The implementation should not be described as fully runtime-verified until the project's normal local or CI test environment executes the focused security suite and regression suite.
