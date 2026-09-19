@@ -71,7 +71,7 @@ describe("error mapping", () => {
   test("maps duplicate-key database errors to conflict", () => {
     const response = createResponse();
     errorHandler(
-      { code: 11000 },
+      { code: "23505" },
       { requestId: "req-456", method: "POST", originalUrl: "/api/user/signup" },
       response,
       () => {}
