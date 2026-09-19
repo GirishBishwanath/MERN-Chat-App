@@ -5,19 +5,23 @@
   "main": "dist/index.js",
   "type": "module",
   "scripts": {
-    "test": "tsx --import ./test/setup-env.js --test auth/*.test.js middleware/*.test.js",
+    "test": "npm run test:unit && npm run test:integration && npm run test:realtime && npm run test:security",
     "test:message": "tsx --test utils/messageCursor.test.ts validation/message.schemas.test.ts",
     "test:postgres": "npm run test:postgres:migrations && npm run test:postgres:persistence",
-    "test:postgres:migrations": "tsx --import ./test/setup-env.js --test test/migrate.persistence.test.ts",
-    "test:postgres:persistence": "tsx --import ./test/setup-env.js --test test/postgres.persistence.test.ts",
+    "test:postgres:migrations": "tsx --import ./test/setup-env.js --test-concurrency=1 --test test/migrate.persistence.test.ts",
+    "test:postgres:persistence": "tsx --import ./test/setup-env.js --test-concurrency=1 --test test/postgres.persistence.test.ts",
     "test:socket": "tsx --import ./test/setup-env.js --test SocketIO/server.test.ts",
-    "test:redis": "tsx --import ./test/setup-env.js --test infra/redis/redis.test.ts infra/redis/multi-instance.test.ts",
+    "test:redis": "tsx --import ./test/setup-env.js --test-concurrency=1 --test infra/redis/redis.test.ts infra/redis/multi-instance.test.ts",
     "db:migrate": "tsx db/migrate.ts",
     "typecheck": "tsc --noEmit",
     "build": "tsc && tsx db/copy-migrations.ts",
     "start": "node dist/index.js",
     "dev": "tsx index.ts",
-    "test:security": "tsx --import ./test/setup-env.js --test middleware/securityHardening.test.ts validation/user.schemas.test.ts auth/session.test.js SocketIO/server.test.ts"
+    "test:security": "tsx --import ./test/setup-env.js --test middleware/securityHardening.test.ts validation/user.schemas.test.ts auth/session.test.js SocketIO/server.test.ts",
+    "test:unit": "tsx --import ./test/setup-env.js --test auth/*.test.js middleware/*.test.js utils/messageCursor.test.ts validation/message.schemas.test.ts",
+    "test:api": "tsx --import ./test/setup-env.js --test test/api.integration.test.ts",
+    "test:integration": "npm run test:api && npm run test:postgres",
+    "test:realtime": "npm run test:redis && npm run test:socket"
   },
   "keywords": [
     "MERN"
