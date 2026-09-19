@@ -85,7 +85,6 @@ Render backend environment variables:
 - `REDIS_URL`
 - `JWT_SECRET`
 - `CORS_ORIGINS`
-- `CORS_ORIGINS`
 
 Vercel frontend environment variable:
 - `VITE_BACKEND_URL`
@@ -94,67 +93,31 @@ Vercel frontend environment variable:
 
 ## 📁 Project Structure
 
-```bash
-ChatApp/
-├── README.md
-├── ROADMAP.md
-├── ARCHITECTURE.md
-├── assets/
+```text
+MERN-Chat-App/
 ├── Backend/
-│   ├── index.js
-│   ├── package.json
-│   ├── .env.example
+│   ├── app.ts
+│   ├── index.ts
 │   ├── auth/
-│   │   ├── session.js
-│   │   ├── session.test.js
-│   │   └── user.controller.test.js
 │   ├── config/
-│   │   └── env.js
 │   ├── controller/
-│   │   ├── message.controller.js
-│   │   └── user.controller.js
+│   ├── db/
 │   ├── errors/
-│   │   ├── AppError.js
-│   │   └── errorCodes.js
+│   ├── infra/redis/
 │   ├── middleware/
-│   │   ├── asyncHandler.js
-│   │   ├── errorHandler.js
-│   │   ├── requestContext.js
-│   │   ├── secureRoute.js
-│   │   ├── validateRequest.js
-│   │   └── apiFoundation.test.js
-│   ├── models/
-│   │   ├── conversation.model.js
-│   │   ├── message.model.js
-│   │   ├── session.model.js
-│   │   └── user.model.js
-│   ├── repositories/
-│   │   ├── conversation.repository.js
-│   │   ├── message.repository.js
-│   │   └── user.repository.js
+│   ├── repositories/postgres/
 │   ├── routes/
-│   │   ├── health.route.js
-│   │   ├── message.route.js
-│   │   └── user.route.js
 │   ├── services/
-│   │   ├── message.service.js
-│   │   └── user.service.js
 │   ├── SocketIO/
-│   │   └── server.js
+│   ├── test/
 │   ├── utils/
-│   │   └── logger.js
 │   └── validation/
-│       ├── message.schemas.js
-│       └── user.schemas.js
-└── Frontend/
-    ├── package.json
-    ├── vercel.json
-    └── src/
-        ├── App.jsx
-        ├── components/
-        ├── context/
-        ├── home/
-        └── statemanage/
+├── Frontend/
+│   └── src/
+├── docs/
+│   ├── adr/
+│   └── engineering/
+└── README.md
 ```
 
 ---
