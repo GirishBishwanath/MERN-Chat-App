@@ -25,8 +25,9 @@ A full-stack real-time messaging platform enabling communication with server-aut
 
 - **Frontend:** React.js, Tailwind CSS, Axios
 - **Backend:** Node.js, Express.js, Socket.IO
-- **Database:** MongoDB (Mongoose ODM)
-- **Authentication:** JWT access credentials, MongoDB-backed refresh sessions, bcrypt
+- **Database:** PostgreSQL
+- **Ephemeral/distributed state:** Redis (presence, Socket.IO adapter, authentication rate limiting)
+- **Authentication:** JWT access credentials, PostgreSQL-backed refresh sessions, bcrypt
 
 ---
 
@@ -45,7 +46,7 @@ Express API
   │     └── JWT → user identity
   │
   └── refreshToken (30 days)
-        └── SHA-256 hash stored in MongoDB Session
+        └── SHA-256 hash stored in PostgreSQL Session
 
 Page load
   → GET /api/user/me
@@ -71,13 +72,19 @@ For production cross-domain deployment, authentication cookies use `HttpOnly`, `
 
 - **Frontend:** Vercel
 - **Backend:** Render (persistent Node service for Socket.IO)
-- **Database:** MongoDB Atlas
+- **Database:** PostgreSQL
 
 The root `render.yaml` configures the backend deployment.
 
 Render backend environment variables:
-- `MONGODB_URI`
+- `POSTGRES_HOST`
+- `POSTGRES_PORT`
+- `POSTGRES_DATABASE`
+- `POSTGRES_USER`
+- `POSTGRES_PASSWORD`
+- `REDIS_URL`
 - `JWT_SECRET`
+- `CORS_ORIGINS`
 - `CORS_ORIGINS`
 
 Vercel frontend environment variable:
@@ -171,7 +178,12 @@ cd ../Frontend && npm install
 Create `Backend/.env` from `Backend/.env.example`:
 ```env
 PORT=4002
-MONGODB_URI=your_mongodb_connection_string
+POSTGRES_HOST=127.0.0.1
+POSTGRES_PORT=5432
+POSTGRES_DATABASE=mern_chat_app
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=your_local_postgres_password
+REDIS_URL=redis://127.0.0.1:6379
 JWT_SECRET=your_long_random_jwt_secret
 NODE_ENV=development
 CORS_ORIGINS=http://localhost:3001
@@ -196,3 +208,28 @@ npm run dev
 ```
 
 For production, set the actual deployed backend URL in `VITE_BACKEND_URL` and include the deployed frontend origin in `CORS_ORIGINS`.
+
+## 🧪 Testing
+
+The backend uses Node's built-in `node:test` runner with real PostgreSQL and Redis integration tests where infrastructure semantics matter.
+
+From `Backend/`:
+
+```bash
+npm test
+```
+
+The authoritative command runs the unit, API integration, PostgreSQL, Redis, Socket.IO, and security suites in sequence.
+
+Focused commands:
+
+```bash
+npm run test:unit
+npm run test:api
+npm run test:postgres
+npm run test:redis
+npm run test:socket
+npm run test:security
+```
+
+PostgreSQL and Redis tests use local test infrastructure and synthetic credentials. See `docs/engineering/PHASE-12-TESTING.md` for the testing architecture and current limitations.
