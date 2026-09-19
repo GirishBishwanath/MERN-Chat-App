@@ -118,7 +118,7 @@ test("state-changing requests without a trusted origin are blocked before route 
   });
   assert.equal(response.status, 403);
   const body = await response.json() as { code: string };
-  assert.equal(body.code, "CSRF_BLOCKED");
+  assert.equal(body.code, "FORBIDDEN");
 });
 
 test("logout revokes the authenticated session and protected access stops working", async () => {
