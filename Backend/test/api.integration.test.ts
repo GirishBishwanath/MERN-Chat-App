@@ -31,6 +31,18 @@ const bob = {
   password: "CorrectHorseBatteryStaple",
   confirmPassword: "CorrectHorseBatteryStaple",
 };
+const logoutUser = {
+  fullname: "API Logout User",
+  email: `api-logout-${suffix}@example.com`,
+  password: "CorrectHorseBatteryStaple",
+  confirmPassword: "CorrectHorseBatteryStaple",
+};
+const messageUser = {
+  fullname: "API Message User",
+  email: `api-message-${suffix}@example.com`,
+  password: "CorrectHorseBatteryStaple",
+  confirmPassword: "CorrectHorseBatteryStaple",
+};
 
 let server: http.Server;
 let baseUrl: string;
@@ -74,7 +86,12 @@ before(async () => {
 
 after(async () => {
   await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
-  await postgresPool.query("DELETE FROM users WHERE email IN ($1, $2)", [alice.email, bob.email]);
+  await postgresPool.query("DELETE FROM users WHERE email = ANY($1::text[])", [[
+    alice.email,
+    bob.email,
+    logoutUser.email,
+    messageUser.email,
+  ]]);
   await closeSocketInfrastructure();
   await postgresPool.end();
 });
@@ -116,9 +133,12 @@ test("state-changing requests without a trusted origin are blocked before route 
 });
 
 test("logout revokes the authenticated session and protected access stops working", async () => {
+  const signupResponse = await request("/api/user/signup", json(logoutUser));
+  assert.equal(signupResponse.status, 201);
+
   const loginResponse = await request("/api/user/login", json({
-    email: alice.email,
-    password: alice.password,
+    email: logoutUser.email,
+    password: logoutUser.password,
   }));
   assert.equal(loginResponse.status, 200);
   const cookies = cookieHeader(loginResponse);
@@ -134,9 +154,12 @@ test("logout revokes the authenticated session and protected access stops workin
 });
 
 test("malformed message requests are rejected at the API boundary", async () => {
+  const signupResponse = await request("/api/user/signup", json(messageUser));
+  assert.equal(signupResponse.status, 201);
+
   const loginResponse = await request("/api/user/login", json({
-    email: alice.email,
-    password: alice.password,
+    email: messageUser.email,
+    password: messageUser.password,
   }));
   const cookies = cookieHeader(loginResponse);
 
