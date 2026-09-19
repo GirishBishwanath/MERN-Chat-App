@@ -22,7 +22,7 @@
     "test:api": "tsx --import ./test/setup-env.js --test test/api.integration.test.ts",
     "test:integration": "npm run test:api && npm run test:postgres",
     "test:realtime": "npm run test:redis && npm run test:socket",
-    "test:coverage": "node --import tsx --test --experimental-test-coverage auth/*.test.js middleware/*.test.js utils/messageCursor.test.ts validation/message.schemas.test.ts test/api.integration.test.ts test/migrate.persistence.test.ts test/postgres.persistence.test.ts infra/redis/redis.test.ts infra/redis/multi-instance.test.ts SocketIO/server.test.ts"
+    "test:coverage": "node --import tsx --import ./test/setup-env.js --test --experimental-test-coverage auth/*.test.js middleware/*.test.js utils/messageCursor.test.ts validation/message.schemas.test.ts test/api.integration.test.ts test/migrate.persistence.test.ts test/postgres.persistence.test.ts infra/redis/redis.test.ts infra/redis/multi-instance.test.ts SocketIO/server.test.ts"
   },
   "keywords": [
     "MERN"
