@@ -10,7 +10,7 @@ The API also had no dedicated CSRF boundary, authentication rate limit, or delib
 
 ### Session-bound access JWTs
 
-Each access JWT now contains the MongoDB session identifier that created it. Protected HTTP requests and Socket.IO handshakes require both a valid HS256 JWT and a matching, unexpired server-side session.
+Each access JWT now contains the PostgreSQL session identifier that created it. Protected HTTP requests and Socket.IO handshakes require both a valid HS256 JWT and a matching, unexpired server-side session.
 
 Deleting a session therefore invalidates the corresponding access JWT for new protected requests and new socket connections.
 
@@ -47,4 +47,4 @@ Cross-site unsafe requests from untrusted origins now fail with CSRF_BLOCKED. Br
 
 Focused regression tests cover revoked sessions, socket authentication, request-origin enforcement, bounded authentication fields, rate limiting, security headers, and oversized-body error mapping.
 
-Full npm verification remains environment-dependent and must be run in a checkout with the repository's MongoDB, PostgreSQL, and Redis test services available.
+Full npm verification remains environment-dependent and must be run in a checkout with the repository's PostgreSQL, PostgreSQL, and Redis test services available.
