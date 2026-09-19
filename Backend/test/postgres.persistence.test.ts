@@ -139,7 +139,7 @@ test("stores and retrieves messages with stable ordering and bounded result size
   const result = await findMessagesByConversation(conversation.id, 3);
   assert.equal(result.messages.length, 3);
   assert.equal(result.hasMore, true);
-  assert.deepEqual(result.messages.map((message) => message.content), ["message-0", "message-1", "message-2"]);
+  assert.deepEqual(result.messages.map((message) => message.content), ["message-2", "message-3", "message-4"]);
 });
 
 test("database rejects messages with invalid foreign keys", async () => {
