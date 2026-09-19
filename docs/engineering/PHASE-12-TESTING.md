@@ -53,6 +53,7 @@ Focused commands remain available for diagnosis:
 - `npm run test:socket`
 - `npm run test:realtime`
 - `npm run test:security`
+- `npm run test:coverage`
 
 ## Why no separate contract framework
 
@@ -60,7 +61,7 @@ The current application already shares typed API/realtime contracts inside the T
 
 ## Coverage
 
-No arbitrary percentage target is imposed. Critical authentication, authorization, persistence, Redis, realtime, and security paths are the coverage priorities. A useful coverage command should be added after the frontend/backend test layers are complete enough for the report to be actionable.
+No arbitrary percentage target is imposed. Critical authentication, authorization, persistence, Redis, realtime, and security paths are the coverage priorities. Backend coverage is available through `npm run test:coverage` using Node's built-in test coverage. Coverage percentages are not treated as a quality target; the report is evidence for identifying unprotected critical paths.
 
 ## Known limitations
 
