@@ -19,7 +19,7 @@ test("message cursor rejects malformed and unsupported cursors", () => {
   assert.equal(decodeMessageCursor("not-a-cursor"), null);
 
   const encoded = Buffer.from(
-    JSON.stringify({ v: 2, createdAt: "2026-09-14T12:00:00.000Z", id: validId }),
+    JSON.stringify({ v: 1, createdAt: "2026-09-14T12:00:00.000Z", id: validId }),
     "utf8"
   ).toString("base64url");
   assert.equal(decodeMessageCursor(encoded), null);
