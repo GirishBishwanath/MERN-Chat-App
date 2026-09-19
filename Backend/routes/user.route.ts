@@ -8,7 +8,9 @@ import {
   refresh,
   signup,
 } from "../controller/user.controller.js";
-import secureRoute from "../middleware/secureRoute.js";\nimport { asyncHandler } from "../middleware/asyncHandler.js";\nimport { createRedisRateLimiter, credentialRateLimitKey } from "../middleware/rateLimit.js";
+import secureRoute from "../middleware/secureRoute.js";
+import { asyncHandler } from "../middleware/asyncHandler.js";
+import { createRedisRateLimiter, credentialRateLimitKey } from "../middleware/rateLimit.js";
 import { validateRequest } from "../middleware/validateRequest.js";
 import type { AuthenticatedRequest } from "../types/http.js";
 import { loginSchema, signupSchema } from "../validation/user.schemas.js";
