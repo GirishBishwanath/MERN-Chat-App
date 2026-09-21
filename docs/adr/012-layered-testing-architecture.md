@@ -14,13 +14,13 @@ The application uses real PostgreSQL and Redis for behavior where their semantic
 
 1. Retain Node's built-in `node:test` for backend unit, integration, security, and realtime suites.
 2. Add HTTP API integration tests against the Express application without starting the production listener.
-3. Run PostgreSQL and Redis integration suites with controlled test concurrency.
+3. Run PostgreSQL and Redis integration suites with controlled test concurrency and isolate destructive migration fixtures from the shared application test database.
 4. Keep Redis test state explicitly separated by Redis database where multiple infrastructure instances are involved.
 5. Make `npm test` the authoritative backend test command and keep focused commands for diagnosis.
 6. Use Vitest + React Testing Library for frontend component/state testing when the frontend lockfile can be regenerated and verified by the normal npm toolchain.
 7. Use Playwright for a small set of deterministic browser workflows once the frontend E2E environment is available.
 8. Do not introduce a dedicated contract-testing framework until an independently versioned producer/consumer boundary justifies it.
-9. Do not impose an arbitrary coverage percentage.
+9. Use Node's built-in coverage reporting as evidence, without imposing an arbitrary percentage gate.
 
 ## Alternatives considered
 
@@ -51,4 +51,4 @@ Tradeoffs:
 
 ## Deferred
 
-Frontend component tests, Playwright E2E, and coverage reporting remain explicit Phase 12 work items requiring synchronized dependency lockfiles and actual runtime verification in the normal local checkout.
+Frontend component tests and Playwright E2E remain explicit Phase 12 work items requiring synchronized dependency lockfiles and actual runtime verification in the normal local checkout.
