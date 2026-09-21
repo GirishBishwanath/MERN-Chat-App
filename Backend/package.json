@@ -5,7 +5,7 @@
   "main": "dist/index.js",
   "type": "module",
   "scripts": {
-    "test": "npm run test:unit && npm run test:integration && npm run test:realtime && npm run test:security",
+    "test": "npm run test:prepare && npm run test:unit && npm run test:integration && npm run test:realtime && npm run test:security",
     "test:message": "tsx --test utils/messageCursor.test.ts validation/message.schemas.test.ts",
     "test:postgres": "npm run test:postgres:migrations && npm run test:postgres:persistence",
     "test:postgres:migrations": "tsx --import ./test/setup-env.js --test-concurrency=1 --test test/migrate.persistence.test.ts",
@@ -22,7 +22,8 @@
     "test:api": "tsx --import ./test/setup-env.js --test test/api.integration.test.ts",
     "test:integration": "npm run test:api && npm run test:postgres",
     "test:realtime": "npm run test:redis && npm run test:socket",
-    "test:coverage": "node --import tsx --import ./test/setup-env.js --test --test-concurrency=1 --experimental-test-coverage auth/*.test.js middleware/*.test.js utils/messageCursor.test.ts validation/message.schemas.test.ts test/api.integration.test.ts test/migrate.persistence.test.ts test/postgres.persistence.test.ts infra/redis/redis.test.ts infra/redis/multi-instance.test.ts SocketIO/server.test.ts"
+    "test:coverage": "npm run test:prepare && node --import tsx --import ./test/setup-env.js --test --test-concurrency=1 --experimental-test-coverage auth/*.test.js middleware/*.test.js utils/messageCursor.test.ts validation/message.schemas.test.ts test/api.integration.test.ts test/migrate.persistence.test.ts test/postgres.persistence.test.ts infra/redis/redis.test.ts infra/redis/multi-instance.test.ts SocketIO/server.test.ts",
+    "test:prepare": "tsx --import ./test/setup-env.js test/prepare-test-database.ts"
   },
   "keywords": [
     "MERN"
