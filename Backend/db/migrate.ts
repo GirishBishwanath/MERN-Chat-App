@@ -2,7 +2,7 @@ import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import type { PoolClient } from "pg";
+import type { Pool, PoolClient } from "pg";
 
 import { postgresPool } from "./pool.js";
 
@@ -67,8 +67,8 @@ const applyMigration = async (
   }
 };
 
-export const runMigrations = async (): Promise<void> => {
-  const client = await postgresPool.connect();
+export const runMigrations = async (pool: Pool = postgresPool): Promise<void> => {
+  const client = await pool.connect();
   try {
     await client.query("SELECT pg_advisory_lock($1)", [MIGRATION_LOCK_KEY]);
     try {
