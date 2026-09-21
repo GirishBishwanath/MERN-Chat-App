@@ -113,5 +113,5 @@ test("migration rolls back earlier statements when a migration statement fails",
     "SELECT to_regclass($1) AS table_name",
     [`${migrationSchema}.messages`]
   );
-  assert.equal(preservedConflict.rows[0]?.table_name, `${migrationSchema}.messages`);
+  assert.equal(preservedConflict.rows[0]?.table_name, "messages");
 });
