@@ -31,8 +31,9 @@ Playwright is the proposed browser E2E framework. It should cover only determini
 ## Test isolation
 
 - PostgreSQL integration suites run with test concurrency disabled.
-- Migration and persistence suites run sequentially.
+- Migration persistence tests use a dedicated PostgreSQL schema so their destructive rollback fixtures cannot mutate the shared application test database.
 - Persistence tests clean their owned test data between cases.
+- The test database can be deterministically reset and migrated with `npm run test:prepare`.
 - Redis integration tests run with test concurrency disabled.
 - The multi-instance Redis adapter test uses a dedicated Redis database.
 - Test credentials are synthetic and local-only.
@@ -53,6 +54,7 @@ Focused commands remain available for diagnosis:
 - `npm run test:socket`
 - `npm run test:realtime`
 - `npm run test:security`
+- `npm run test:prepare`
 - `npm run test:coverage`
 
 ## Why no separate contract framework
@@ -67,9 +69,7 @@ No arbitrary percentage target is imposed. Critical authentication, authorizatio
 
 1. Frontend component tests are not yet installed.
 2. Browser E2E is not yet installed.
-3. Coverage reporting is not yet configured.
-4. The backend lockfile contains historical MongoDB/Mongoose package entries even though `Backend/package.json` no longer declares Mongoose. This must be reconciled with the local npm toolchain before Phase 12 is complete.
-5. CI execution is intentionally deferred to Phase 14.
+3. CI execution is intentionally deferred to Phase 14.
 
 ## Local prerequisites
 
