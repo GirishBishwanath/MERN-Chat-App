@@ -180,12 +180,12 @@ describe("AuthProvider", () => {
       .spyOn(console, "error")
       .mockImplementation(() => undefined);
 
-    try {
-      function InvalidConsumer() {
-        useAuth();
-        return null;
-      }
+    const InvalidConsumer = () => {
+      useAuth();
+      return null;
+    };
 
+    try {
       expect(() => render(<InvalidConsumer />)).toThrow(
         "useAuth must be used within an AuthProvider"
       );
