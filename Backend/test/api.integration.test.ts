@@ -85,6 +85,27 @@ after(async () => {
   await postgresPool.end();
 });
 
+test("liveness reports the API process is alive", async () => {
+  const response = await request("/health/live");
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), { status: "ok" });
+});
+
+test("readiness verifies PostgreSQL and Redis dependencies", async () => {
+  const response = await request("/health/ready");
+  assert.equal(response.status, 200);
+  const body = await response.json() as {
+    status: string;
+    database: string;
+    redis: string;
+  };
+  assert.deepEqual(body, {
+    status: "ready",
+    database: "connected",
+    redis: "connected",
+  });
+});
+
 test("signup establishes an authenticated session and /me is protected by that session", async () => {
   const signupResponse = await request("/api/user/signup", json(alice));
   assert.equal(signupResponse.status, 201);
