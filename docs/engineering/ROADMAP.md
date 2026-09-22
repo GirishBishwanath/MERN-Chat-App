@@ -20,7 +20,7 @@ This roadmap is the version-controlled execution plan for evolving the chat appl
 | 9 | Authenticated Realtime / Socket Correctness | Server-authenticated Socket.IO, reconnect/multi-device correctness, deduplication | Pending |
 | 10 | Redis Distributed Use Cases | Justified Redis usage for presence, rate limiting, Socket.IO scaling, or demonstrated caching | **Implementation complete; regression verification pending** |
 | 11 | Security Hardening | Public-exposure security review and regression tests | Pending |
-| 12 | Testing System | Unit, integration, realtime, E2E, contract, and load-testing foundations | Pending |
+| 12 | Testing System | Layered unit, integration, realtime, API, security, frontend automation, isolation, and coverage foundations | **Complete; local verification required after final repository commit** |
 | 13 | Docker / Local Development | Production-quality images and reproducible local infrastructure | Pending |
 | 14 | GitHub Actions CI/CD | Automated validation, image builds, staging/smoke verification, rollback strategy | Pending |
 | 15 | Kafka / Event-Driven Architecture | Meaningful domain events, typed envelopes, retries, ordering, observability | Pending |
@@ -81,7 +81,11 @@ Stop and report rather than guessing when:
 
 Complete whatever can be done safely without inventing facts.
 
-## Current baseline note
+## ### Phase 12 implementation record
+
+Phase 12 now includes an authoritative backend regression command, real PostgreSQL/Redis/Socket.IO integration coverage, security regression coverage, Vitest + React Testing Library frontend automation, test isolation/cleanup rules, and Node test coverage instrumentation. Browser E2E is deliberately deferred because the repository does not yet provide a reproducible browser/backend/infrastructure lifecycle. CI/CD remains Phase 14 and load testing remains Phase 18.
+
+Current baseline note
 
 The repository currently uses a `Backend/` and `Frontend/` layout with Express, MongoDB/Mongoose, Socket.IO, JWT cookies, React, Axios, React Router, and Zustand. Phase 03 adds explicit backend validation, application errors, centralized error mapping, request IDs, structured request logging, service/repository boundaries where they carry business or persistence responsibility, and health/readiness/liveness endpoints.
 
