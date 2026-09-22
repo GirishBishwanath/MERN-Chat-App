@@ -172,6 +172,79 @@ npm run dev
 
 For production, set the actual deployed backend URL in `VITE_BACKEND_URL` and include the deployed frontend origin in `CORS_ORIGINS`.
 
+## 🐳 Docker Local Development
+
+Phase 13 adds a reproducible Docker Compose workflow for the complete local runtime:
+
+```text
+Browser
+   │
+   ├── localhost:3001 → Frontend/Vite
+   │                     │
+   │                     └── /api → backend:4002
+   │
+   └── localhost:4002 → Backend/Socket.IO
+                           │
+                           ├── postgres:5432 → PostgreSQL
+                           └── redis:6379   → Redis
+```
+
+Prerequisite: Docker Desktop with Docker Compose v2.
+
+Optional local overrides:
+
+```bash
+cp .env.docker.example .env
+```
+
+On Windows PowerShell:
+
+```powershell
+Copy-Item .env.docker.example .env
+```
+
+Start the complete development stack:
+
+```bash
+docker compose up --build
+```
+
+Run PostgreSQL migrations explicitly:
+
+```bash
+docker compose run --rm backend npm run db:migrate
+```
+
+The application is available at:
+
+- Frontend: http://localhost:3001
+- Backend: http://localhost:4002
+- Liveness: http://localhost:4002/health/live
+- Readiness: http://localhost:4002/health/ready
+
+Useful commands:
+
+```bash
+docker compose ps
+docker compose logs -f
+docker compose down
+docker compose build --no-cache
+```
+
+To intentionally delete the local PostgreSQL volume and recreate the database:
+
+```bash
+docker compose down -v
+docker compose up --build
+docker compose run --rm backend npm run db:migrate
+```
+
+**Warning:** `docker compose down -v` destroys local PostgreSQL development data.
+
+Inside Compose, the backend connects to `postgres` and `redis` by service name. The browser-facing `VITE_BACKEND_URL` remains `http://localhost:4002` so Socket.IO can connect from the browser. The Vite proxy uses `VITE_DEV_PROXY_TARGET=http://backend:4002` for container-to-container API traffic.
+
+See [Phase 13 Docker and local development](docs/engineering/PHASE-13-DOCKER.md) and [ADR 003](docs/adr/003-docker-local-development.md) for the implemented architecture and troubleshooting workflow.
+
 ## 🧪 Testing
 
 The backend uses Node's built-in `node:test` runner with real PostgreSQL and Redis integration tests where infrastructure semantics matter.
