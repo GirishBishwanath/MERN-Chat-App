@@ -191,7 +191,7 @@ Browser
 
 Prerequisite: Docker Desktop with Docker Compose v2.
 
-Optional local overrides:
+Create the required local Docker environment file:
 
 ```bash
 cp .env.docker.example .env
