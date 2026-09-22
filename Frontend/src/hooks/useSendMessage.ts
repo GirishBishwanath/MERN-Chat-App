@@ -3,6 +3,10 @@ import axiosClient from "../utils/axiosConfig";
 import { useConversationStore } from "../state/conversationStore";
 import type { Message, SendMessageRequest } from "../types/api";
 
+interface SendMessageResponse {
+  data: Message;
+}
+
 interface UseSendMessageResult {
   loading: boolean;
   sendMessage: (message: string) => Promise<boolean>;
@@ -25,15 +29,14 @@ export function useSendMessage(): UseSendMessageResult {
 
     try {
       const response = await axiosClient.post<
-        Message,
-        { data: Message },
+        SendMessageResponse,
+        { data: SendMessageResponse },
         SendMessageRequest
       >(`/api/message/send/${conversationId}`, { message: trimmedMessage });
 
-      appendMessage(conversationId, response.data);
+      appendMessage(conversationId, response.data.data);
       return true;
-    } catch (requestError) {
-      console.error("Failed to send message", requestError);
+    } catch {
       return false;
     } finally {
       setLoading(false);

@@ -1,63 +1,32 @@
-import express from "express";
-import mongoose from "mongoose";
-import cors from "cors";
-import cookieParser from "cookie-parser";
-
 import { config } from "./config/env.js";
-import userRoute from "./routes/user.route.js";
-import messageRoute from "./routes/message.route.js";
-import healthRoute from "./routes/health.route.js";
-import { app, server } from "./SocketIO/server.js";
-import { requestContext } from "./middleware/requestContext.js";
-import { notFoundHandler, errorHandler } from "./middleware/errorHandler.js";
+import { closePostgresPool, verifyPostgresConnection } from "./db/pool.js";
+import { app } from "./app.js";
+import { closeSocketInfrastructure, initializeRedisAdapter, server } from "./SocketIO/server.js";
 import { logger } from "./utils/logger.js";
 
-app.use(requestContext);
-app.use(
-  cors({
-    origin: (origin, callback) => {
-      if (!origin || config.corsOrigins.includes(origin)) {
-        return callback(null, true);
-      }
-      return callback(new Error("CORS policy violation"));
-    },
-    credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: [
-      "Content-Type",
-      "Authorization",
-      "X-Requested-With",
-      "Accept",
-      "X-Request-Id",
-    ],
-  })
-);
-app.use(express.json());
-app.use(cookieParser());
-
-app.use("/health", healthRoute);
-app.use("/api/user", userRoute);
-app.use("/api/message", messageRoute);
-
-app.use(notFoundHandler);
-app.use(errorHandler);
-
 const startServer = async (): Promise<void> => {
-  await mongoose.connect(config.mongodbUri);
-  logger.info("database_connected", { database: "mongodb" });
-
-  server.listen(config.port, "0.0.0.0", () => {
-    logger.info("server_started", { port: config.port });
-  });
+  await verifyPostgresConnection();
+  logger.info("database_connected", { database: "postgresql" });
+  await initializeRedisAdapter();
+  logger.info("redis_adapter_initialized");
+  server.listen(config.port, "0.0.0.0", () =>
+    logger.info("server_started", { port: config.port })
+  );
 };
 
 const shutdown = async (signal: string): Promise<void> => {
   logger.info("server_shutdown_started", { signal });
-  server.close(async () => {
-    await mongoose.disconnect();
+  try {
+    await closeSocketInfrastructure();
+    await closePostgresPool();
     logger.info("server_shutdown_completed");
     process.exit(0);
-  });
+  } catch (error: unknown) {
+    logger.error("server_shutdown_failed", {
+      errorName: error instanceof Error ? error.name : "UnknownError",
+    });
+    process.exit(1);
+  }
 };
 
 process.once("SIGTERM", () => void shutdown("SIGTERM"));
@@ -69,3 +38,5 @@ void startServer().catch((error: unknown) => {
   });
   process.exit(1);
 });
+
+export { app };

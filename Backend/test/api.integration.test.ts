@@ -1,0 +1,180 @@
+import assert from "node:assert/strict";
+import http from "node:http";
+import test, { before, after } from "node:test";
+
+const { app } = await import("../app.js");
+const { postgresPool } = await import("../db/pool.js");
+const { runMigrations } = await import("../db/migrate.js");
+const { initializeRedisAdapter, closeSocketInfrastructure } = await import("../SocketIO/server.js");
+
+const suffix = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+const alice = {
+  fullname: "API Test Alice",
+  email: `api-alice-${suffix}@example.com`,
+  password: "CorrectHorseBatteryStaple",
+  confirmPassword: "CorrectHorseBatteryStaple",
+};
+const bob = {
+  fullname: "API Test Bob",
+  email: `api-bob-${suffix}@example.com`,
+  password: "CorrectHorseBatteryStaple",
+  confirmPassword: "CorrectHorseBatteryStaple",
+};
+const logoutUser = {
+  fullname: "API Logout User",
+  email: `api-logout-${suffix}@example.com`,
+  password: "CorrectHorseBatteryStaple",
+  confirmPassword: "CorrectHorseBatteryStaple",
+};
+const messageUser = {
+  fullname: "API Message User",
+  email: `api-message-${suffix}@example.com`,
+  password: "CorrectHorseBatteryStaple",
+  confirmPassword: "CorrectHorseBatteryStaple",
+};
+
+let server: http.Server;
+let baseUrl: string;
+
+const cookieHeader = (response: Response): string => {
+  const headers = response.headers as Headers & { getSetCookie?: () => string[] };
+  const values = headers.getSetCookie?.() ?? [];
+  if (values.length > 0) {
+    return values.map((value) => value.split(";", 1)[0]).join("; ");
+  }
+  const value = response.headers.get("set-cookie");
+  return value ? value.split(/, (?=[^;]+=)/).map((part) => part.split(";", 1)[0]).join("; ") : "";
+};
+
+const request = async (
+  path: string,
+  init: RequestInit = {},
+  cookies = ""
+): Promise<Response> => {
+  const headers = new Headers(init.headers);
+  headers.set("Origin", "http://localhost:3001");
+  if (cookies) headers.set("Cookie", cookies);
+  return fetch(`${baseUrl}${path}`, { ...init, headers });
+};
+
+const json = (value: unknown): RequestInit => ({
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify(value),
+});
+
+before(async () => {
+  await runMigrations();
+  await initializeRedisAdapter();
+  server = app.listen(0, "127.0.0.1");
+  await new Promise<void>((resolve) => server.once("listening", resolve));
+  const address = server.address();
+  assert.ok(address && typeof address !== "string");
+  baseUrl = `http://127.0.0.1:${address.port}`;
+});
+
+after(async () => {
+  await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  await postgresPool.query("DELETE FROM users WHERE email = ANY($1::text[])", [[
+    alice.email,
+    bob.email,
+    logoutUser.email,
+    messageUser.email,
+  ]]);
+  await closeSocketInfrastructure();
+  await postgresPool.end();
+});
+
+test("liveness reports the API process is alive", async () => {
+  const response = await request("/health/live");
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), { status: "ok" });
+});
+
+test("readiness verifies PostgreSQL and Redis dependencies", async () => {
+  const response = await request("/health/ready");
+  assert.equal(response.status, 200);
+  const body = await response.json() as {
+    status: string;
+    database: string;
+    redis: string;
+  };
+  assert.deepEqual(body, {
+    status: "ready",
+    database: "connected",
+    redis: "connected",
+  });
+});
+
+test("signup establishes an authenticated session and /me is protected by that session", async () => {
+  const signupResponse = await request("/api/user/signup", json(alice));
+  assert.equal(signupResponse.status, 201);
+  const signupBody = await signupResponse.json() as { user: { email: string } };
+  assert.equal(signupBody.user.email, alice.email);
+
+  const cookies = cookieHeader(signupResponse);
+  assert.match(cookies, /accessToken=/);
+  assert.match(cookies, /refreshToken=/);
+
+  const meResponse = await request("/api/user/me", { method: "GET" }, cookies);
+  assert.equal(meResponse.status, 200);
+  const meBody = await meResponse.json() as { user: { email: string } };
+  assert.equal(meBody.user.email, alice.email);
+});
+
+test("duplicate signup is rejected by the application/database contract", async () => {
+  const firstResponse = await request("/api/user/signup", json(bob));
+  assert.equal(firstResponse.status, 201);
+
+  const response = await request("/api/user/signup", json(bob));
+  assert.equal(response.status, 409);
+  const body = await response.json() as { code: string };
+  assert.equal(body.code, "CONFLICT");
+});
+
+test("state-changing requests without a trusted origin are blocked before route handling", async () => {
+  const response = await fetch(`${baseUrl}/api/user/logout`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Origin: "https://attacker.example" },
+  });
+  assert.equal(response.status, 403);
+  const body = await response.json() as { code: string };
+  assert.equal(body.code, "FORBIDDEN");
+});
+
+test("logout revokes the authenticated session and protected access stops working", async () => {
+  const signupResponse = await request("/api/user/signup", json(logoutUser));
+  assert.equal(signupResponse.status, 201);
+
+  const loginResponse = await request("/api/user/login", json({
+    email: logoutUser.email,
+    password: logoutUser.password,
+  }));
+  assert.equal(loginResponse.status, 200);
+  const cookies = cookieHeader(loginResponse);
+
+  const beforeLogout = await request("/api/user/me", { method: "GET" }, cookies);
+  assert.equal(beforeLogout.status, 200);
+
+  const logoutResponse = await request("/api/user/logout", { method: "POST" }, cookies);
+  assert.equal(logoutResponse.status, 204);
+
+  const afterLogout = await request("/api/user/me", { method: "GET" }, cookies);
+  assert.equal(afterLogout.status, 401);
+});
+
+test("malformed message requests are rejected at the API boundary", async () => {
+  const signupResponse = await request("/api/user/signup", json(messageUser));
+  assert.equal(signupResponse.status, 201);
+
+  const loginResponse = await request("/api/user/login", json({
+    email: messageUser.email,
+    password: messageUser.password,
+  }));
+  const cookies = cookieHeader(loginResponse);
+
+  const response = await request("/api/message/send/not-a-uuid", json({ message: "hello" }), cookies);
+  assert.equal(response.status, 400);
+  const body = await response.json() as { code: string };
+  assert.equal(body.code, "VALIDATION_ERROR");
+});

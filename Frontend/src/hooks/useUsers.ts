@@ -35,10 +35,8 @@ export function useUsers(): UseUsersResult {
 
         setUsers(response.data);
         setLoading(false);
-      } catch (requestError) {
+      } catch {
         if (cancelled || controller.signal.aborted) return;
-
-        console.error("Failed to load users", requestError);
         setLoading(false);
         setError(true);
       }

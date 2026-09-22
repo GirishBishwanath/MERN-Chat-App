@@ -7,6 +7,7 @@ import {
 } from "react";
 import { io, type Socket } from "socket.io-client";
 import { useAuth } from "./AuthProvider";
+import axiosClient from "../utils/axiosConfig";
 import type {
   ClientToServerEvents,
   ServerToClientEvents,
@@ -23,6 +24,12 @@ interface SocketContextValue {
   socket: AppSocket | null;
   onlineUsers: string[];
   connectionStatus: SocketConnectionStatus;
+}
+
+interface SocketConnectError extends Error {
+  data?: {
+    code?: "AUTH_REQUIRED" | "AUTH_INVALID" | "AUTH_EXPIRED";
+  };
 }
 
 const SocketContext = createContext<SocketContextValue | undefined>(undefined);
@@ -58,13 +65,11 @@ export function SocketProvider({ children }: SocketProviderProps) {
     }
 
     let active = true;
+    let suppressDisconnectState = false;
     const nextSocket: AppSocket = io(
       import.meta.env.VITE_BACKEND_URL || "http://localhost:4002",
       {
         withCredentials: true,
-        // Socket identity is still supplied by the legacy server handshake.
-        // Phase 09 will replace this with server-derived authenticated identity.
-        query: { userId: authUser._id },
       }
     );
 
@@ -74,15 +79,43 @@ export function SocketProvider({ children }: SocketProviderProps) {
     };
 
     const handleDisconnect = () => {
-      if (!active) return;
+      if (!active || suppressDisconnectState) return;
       setConnectionStatus("reconnecting");
       setOnlineUsers([]);
     };
 
-    const handleConnectError = () => {
+    const handleConnectError = (error: Error) => {
       if (!active) return;
-      setConnectionStatus("reconnecting");
+
+      const authCode = (error as SocketConnectError).data?.code;
+      if (!authCode) {
+        setConnectionStatus("reconnecting");
+        setOnlineUsers([]);
+        return;
+      }
+
+      setConnectionStatus("disconnected");
       setOnlineUsers([]);
+      suppressDisconnectState = true;
+      nextSocket.disconnect();
+
+      if (authCode !== "AUTH_EXPIRED") {
+        window.dispatchEvent(new Event("auth:expired"));
+        return;
+      }
+
+      setConnectionStatus("connecting");
+      void axiosClient
+        .get("/api/user/me")
+        .then(() => {
+          if (!active) return;
+          suppressDisconnectState = false;
+          nextSocket.connect();
+        })
+        .catch(() => {
+          if (!active) return;
+          window.dispatchEvent(new Event("auth:expired"));
+        });
     };
 
     const handleOnlineUsers = (userIds: string[]) => {

@@ -1,0 +1,83 @@
+name: Phase 07 PostgreSQL Persistence
+
+on:
+  push:
+    branches:
+      - feat/postgresql-persistence-foundation
+      - feat/postgres-runtime-cutover
+  pull_request:
+    branches:
+      - main
+      - feat/postgresql-persistence-foundation
+      - feat/postgres-runtime-cutover
+
+jobs:
+  verify-postgres:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Backend
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: mern_chat_app_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d mern_chat_app_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: Backend/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Build
+        run: npm run build
+      - name: Run PostgreSQL integration tests
+        env:
+          NODE_ENV: test
+          JWT_SECRET: test-only-auth-secret
+          CORS_ORIGINS: http://localhost:3001
+          POSTGRES_HOST: 127.0.0.1
+          POSTGRES_PORT: 5432
+          POSTGRES_DATABASE: mern_chat_app_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_SSL: "false"
+          REDIS_URL: redis://127.0.0.1:6379/15
+        run: npm run test:postgres
+      - name: Run realtime and security tests
+        env:
+          NODE_ENV: test
+          JWT_SECRET: test-only-auth-secret
+          CORS_ORIGINS: http://localhost:3001
+          POSTGRES_HOST: 127.0.0.1
+          POSTGRES_PORT: 5432
+          POSTGRES_DATABASE: mern_chat_app_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_SSL: "false"
+          REDIS_URL: redis://127.0.0.1:6379/15
+        run: npm run test:socket && npm run test:security

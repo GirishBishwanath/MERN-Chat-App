@@ -5,11 +5,26 @@
   "main": "dist/index.js",
   "type": "module",
   "scripts": {
-    "test": "tsx --import ./test/setup-env.js --test auth/*.test.js middleware/*.test.js",
+    "test": "npm run test:prepare && npm run test:unit && npm run test:integration && npm run test:realtime && npm run test:security",
+    "test:message": "tsx --test utils/messageCursor.test.ts validation/message.schemas.test.ts",
+    "test:postgres": "npm run test:postgres:migrations && npm run test:postgres:persistence",
+    "test:postgres:migrations": "tsx --import ./test/setup-env.js --test-concurrency=1 --test test/migrate.persistence.test.ts",
+    "test:postgres:persistence": "tsx --import ./test/setup-env.js --test-concurrency=1 --test test/postgres.persistence.test.ts",
+    "test:socket": "tsx --import ./test/setup-env.js --test SocketIO/server.test.ts",
+    "test:redis": "tsx --import ./test/setup-env.js --test-concurrency=1 --test infra/redis/redis.test.ts infra/redis/multi-instance.test.ts",
+    "db:migrate": "tsx db/migrate.ts",
+    "db:migrate:prod": "node dist/db/migrate.js",
     "typecheck": "tsc --noEmit",
-    "build": "tsc",
+    "build": "tsc && tsx db/copy-migrations.ts",
     "start": "node dist/index.js",
-    "dev": "tsx index.ts"
+    "dev": "tsx index.ts",
+    "test:security": "tsx --import ./test/setup-env.js --test middleware/securityHardening.test.js validation/user.schemas.test.js auth/session.test.js",
+    "test:unit": "tsx --import ./test/setup-env.js --test auth/*.test.js middleware/*.test.js utils/messageCursor.test.ts validation/message.schemas.test.ts",
+    "test:api": "tsx --import ./test/setup-env.js --test test/api.integration.test.ts",
+    "test:integration": "npm run test:api && npm run test:postgres",
+    "test:realtime": "npm run test:redis && npm run test:socket",
+    "test:coverage": "npm run test:prepare && node --import tsx --import ./test/setup-env.js --test --test-concurrency=1 --experimental-test-coverage auth/*.test.js middleware/*.test.js utils/messageCursor.test.ts validation/message.schemas.test.ts test/api.integration.test.ts test/migrate.persistence.test.ts test/postgres.persistence.test.ts infra/redis/redis.test.ts infra/redis/multi-instance.test.ts SocketIO/server.test.ts",
+    "test:prepare": "tsx --import ./test/setup-env.js test/prepare-test-database.ts"
   },
   "keywords": [
     "MERN"
@@ -17,23 +32,27 @@
   "author": "Akhilesh",
   "license": "ISC",
   "dependencies": {
+    "@socket.io/redis-adapter": "^8.3.0",
     "bcryptjs": "^2.4.3",
-    "cookie-parser": "^1.4.6",
+    "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
-    "express": "^4.19.2",
-    "jsonwebtoken": "^9.0.2",
-    "mongoose": "^8.3.2",
+    "express": "^4.22.3",
+    "jsonwebtoken": "^9.0.3",
     "nodemon": "^3.1.0",
-    "socket.io": "^4.7.5"
+    "pg": "^8.16.3",
+    "redis": "^5.0.2",
+    "socket.io": "^4.8.3"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
     "@types/cookie-parser": "^1.4.9",
-    "@types/cors": "^2.8.17",
     "@types/express": "^4.17.21",
+    "@types/cors": "^2.8.17",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^24.3.1",
+    "@types/pg": "^8.15.5",
+    "socket.io-client": "^4.7.5",
     "tsx": "^4.23.13",
     "typescript": "^7.0.2"
   }

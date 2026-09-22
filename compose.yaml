@@ -1,0 +1,102 @@
+services:
+  postgres:
+    image: postgres:16.10-alpine3.22
+    environment:
+      POSTGRES_DB: ${POSTGRES_DATABASE:-mern_chat_app}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Copy .env.docker.example to .env and set POSTGRES_PASSWORD}
+    ports:
+      - "${POSTGRES_PORT_PUBLISHED:-5432}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+  redis:
+    image: redis:7.4.11-alpine3.21
+    ports:
+      - "${REDIS_PORT_PUBLISHED:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
+  backend:
+    build:
+      context: ./Backend
+      target: development
+    environment:
+      NODE_ENV: development
+      PORT: 4002
+      JWT_SECRET: ${JWT_SECRET:?Copy .env.docker.example to .env and set JWT_SECRET}
+      CORS_ORIGINS: http://localhost:3001
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DATABASE: ${POSTGRES_DATABASE:-mern_chat_app}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_SSL: "false"
+      POSTGRES_MAX_CONNECTIONS: ${POSTGRES_MAX_CONNECTIONS:-10}
+      POSTGRES_IDLE_TIMEOUT_MS: ${POSTGRES_IDLE_TIMEOUT_MS:-10000}
+      POSTGRES_CONNECTION_TIMEOUT_MS: ${POSTGRES_CONNECTION_TIMEOUT_MS:-5000}
+      REDIS_URL: redis://redis:6379/0
+    ports:
+      - "4002:4002"
+    volumes:
+      - ./Backend:/app
+      - /app/node_modules
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:4002/health/ready').then((response) => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))"
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+  frontend:
+    build:
+      context: ./Frontend
+      target: development
+    environment:
+      VITE_BACKEND_URL: http://localhost:4002
+      VITE_DEV_PROXY_TARGET: http://backend:4002
+      VITE_USE_POLLING: ${VITE_USE_POLLING:-true}
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./Frontend:/app
+      - /app/node_modules
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3001/').then((response) => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))"
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+volumes:
+  postgres-data:

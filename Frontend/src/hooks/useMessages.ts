@@ -1,11 +1,7 @@
 import { useEffect, useState } from "react";
 import axiosClient from "../utils/axiosConfig";
 import { useConversationStore } from "../state/conversationStore";
-import type { Message } from "../types/api";
-
-interface MessagesResponse {
-  messages: Message[];
-}
+import type { Message, MessagePageResponse } from "../types/api";
 
 export interface UseMessagesResult {
   messages: Message[];
@@ -45,15 +41,14 @@ export function useMessages(): UseMessagesResult {
       setError(false);
 
       try {
-        const response = await axiosClient.get<Message[] | MessagesResponse>(
+        const response = await axiosClient.get<MessagePageResponse>(
           `/api/message/get/${conversationId}`,
           { signal: controller.signal }
         );
 
         if (cancelled) return;
 
-        const data = response.data;
-        mergeMessages(conversationId, Array.isArray(data) ? data : data.messages);
+        mergeMessages(conversationId, response.data.data);
         setLoading(false);
       } catch (requestError) {
         if (cancelled || controller.signal.aborted) return;
