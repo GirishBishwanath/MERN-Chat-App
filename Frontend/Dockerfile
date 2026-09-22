@@ -6,6 +6,7 @@ COPY package.json package-lock.json ./
 RUN npm ci
 
 COPY . .
+RUN chown -R node:node /app
 
 FROM base AS development
 
