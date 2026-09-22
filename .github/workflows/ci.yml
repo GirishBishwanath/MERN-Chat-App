@@ -16,7 +16,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  NODE_VERSION: "24.14.1"
+  NODE_VERSION: "24.15.0"
 
 jobs:
   backend-validation:
