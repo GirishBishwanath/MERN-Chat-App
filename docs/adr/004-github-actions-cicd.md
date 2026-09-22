@@ -18,7 +18,7 @@ CI runs on pull requests to main and pushes to main. It validates:
 
 1. backend dependency installation, typecheck, regression tests, coverage, and build;
 2. frontend dependency installation, lint, typecheck, tests, and build;
-3. npm dependency security with npm audit --audit-level=high;
+3. npm dependency security reporting with npm audit --audit-level=high;
 4. Docker Compose interpolation and production-target Docker builds.
 
 Backend integration tests use GitHub Actions service containers for PostgreSQL and Redis rather than developer infrastructure.
@@ -61,7 +61,7 @@ Frontend Vite variables are treated as public build-time configuration; no secre
 
 ## Failure and recovery
 
-A failed validation job blocks the associated workflow run.
+Code quality, tests, builds, and Docker validation block their jobs. The dependency audit is advisory in Phase 14 because the current lockfiles contain known high/critical vulnerabilities; the workflow preserves the full JSON report and emits a warning instead of turning the repository's status permanently red while remediation belongs to the security backlog.
 
 A failed image publication does not leave a claimed deployment state because no production deployment occurs in this phase.
 
@@ -83,7 +83,7 @@ Costs:
 - CI consumes runner minutes
 - backend integration tests require service containers
 - GHCR becomes an additional artifact store
-- dependency audit failures require deliberate dependency remediation
+- known dependency vulnerabilities remain visible and require deliberate remediation
 
 ## Follow-up
 
