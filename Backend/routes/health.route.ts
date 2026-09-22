@@ -1,5 +1,6 @@
 import express, { type Request, type Response } from "express";
 import { verifyPostgresConnection } from "../db/pool.js";
+import { verifyRedisConnection } from "../infra/redis/client.js";
 
 const router = express.Router();
 
@@ -10,9 +11,17 @@ router.get("/live", (_req: Request, res: Response) => {
 router.get("/ready", async (_req: Request, res: Response) => {
   try {
     await verifyPostgresConnection();
-    return res.status(200).json({ status: "ready", database: "connected" });
+    await verifyRedisConnection();
+    return res.status(200).json({
+      status: "ready",
+      database: "connected",
+      redis: "connected",
+    });
   } catch {
-    return res.status(503).json({ status: "not_ready", database: "disconnected" });
+    return res.status(503).json({
+      status: "not_ready",
+      database: "or_redis_disconnected",
+    });
   }
 });
 
