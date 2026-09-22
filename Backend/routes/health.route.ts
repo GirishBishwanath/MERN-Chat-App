@@ -20,7 +20,7 @@ router.get("/ready", async (_req: Request, res: Response) => {
   } catch {
     return res.status(503).json({
       status: "not_ready",
-      database: "or_redis_disconnected",
+      dependencies: "unavailable",
     });
   }
 });
