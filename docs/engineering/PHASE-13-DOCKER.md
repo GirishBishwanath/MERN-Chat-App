@@ -83,7 +83,7 @@ Run migrations explicitly after the stack is healthy:
 docker compose run --rm backend npm run db:migrate
 ```
 
-The backend does not automatically run destructive or schema-changing migrations on startup.
+The Compose file requires `POSTGRES_PASSWORD` and `JWT_SECRET` to be supplied through the local `.env` file or shell environment. The backend does not automatically run destructive or schema-changing migrations on startup.
 
 ## Useful commands
 
@@ -141,7 +141,7 @@ The local Compose Redis service has no data volume. Removing/recreating the Redi
 
 `/health/live` answers whether the API process is alive.
 
-`/health/ready` verifies both PostgreSQL and Redis connectivity and returns HTTP 503 when either required dependency is unavailable.
+`/health/ready` verifies both PostgreSQL and Redis connectivity and returns HTTP 503 with a generic dependency-unavailable response when either required dependency is unavailable.
 
 Compose uses dependency health checks before starting the backend. The backend also verifies PostgreSQL and Redis during startup.
 
