@@ -4,7 +4,7 @@ services:
     environment:
       POSTGRES_DB: ${POSTGRES_DATABASE:-mern_chat_app}
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Copy .env.docker.example to .env and set POSTGRES_PASSWORD}
     ports:
       - "${POSTGRES_PORT_PUBLISHED:-5432}:5432"
     volumes:
@@ -34,7 +34,7 @@ services:
     environment:
       NODE_ENV: development
       PORT: 4002
-      JWT_SECRET: ${JWT_SECRET:-local-development-only-change-this-secret}
+      JWT_SECRET: ${JWT_SECRET:?Copy .env.docker.example to .env and set JWT_SECRET}
       CORS_ORIGINS: http://localhost:3001
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
