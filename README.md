@@ -269,3 +269,33 @@ npm run test:security
 ```
 
 PostgreSQL and Redis tests use local test infrastructure and synthetic credentials. See `docs/engineering/PHASE-12-TESTING.md` for the testing architecture and current limitations.
+
+## 🔄 GitHub Actions CI/CD
+
+Phase 14 adds repository-level CI and container artifact publication.
+
+Pull requests targeting `main` and pushes to `main` run:
+
+- backend typecheck, regression tests, PostgreSQL/Redis integration tests, coverage, and build
+- frontend lint, typecheck, tests, and production build
+- npm dependency audit at high severity or above
+- Docker Compose configuration validation
+- production-target backend and frontend Docker builds
+
+The backend CI job provisions disposable PostgreSQL and Redis service containers, so integration tests do not depend on developer or production infrastructure.
+
+Dependencies are installed with `npm ci` using the committed lockfiles. GitHub Actions caches npm's package cache, not `node_modules`.
+
+### Container artifacts
+
+A successful `main` push publishes the existing production Docker images to GitHub Container Registry:
+
+- `ghcr.io/<owner>/mern-chat-app-backend`
+- `ghcr.io/<owner>/mern-chat-app-frontend`
+
+Each image receives the full source commit SHA as an immutable tag and also a mutable `:main` convenience tag. Future deployment infrastructure must deploy the immutable commit-SHA tag or registry digest rather than `:main`.
+
+Phase 14 stops at artifact publication. The repository does not claim an AWS/Kubernetes production deployment yet; cloud deployment and promotion are intentionally deferred to the later infrastructure phase.
+
+See [Phase 14 GitHub Actions CI/CD](docs/engineering/PHASE-14-GITHUB-ACTIONS-CICD.md) and [ADR 004](docs/adr/004-github-actions-cicd.md).
+
