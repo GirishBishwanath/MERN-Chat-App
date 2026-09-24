@@ -2,6 +2,7 @@ import { Kafka, logLevel, type Consumer, type Producer } from "kafkajs";
 import { config } from "../../config/env.js";
 import { logger } from "../../utils/logger.js";
 import { startMessageNotificationConsumer, stopMessageNotificationConsumer } from "../../events/message-notification.consumer.js";
+import { MESSAGE_CREATED_DLQ_TOPIC, MESSAGE_CREATED_TOPIC } from "../../events/contracts.js";
 
 const kafka = new Kafka({
   clientId: config.kafka.clientId,
@@ -30,6 +31,20 @@ export const initializeKafkaInfrastructure = async (): Promise<boolean> => {
   }
 
   try {
+    const admin = kafka.admin();
+    await admin.connect();
+    try {
+      await admin.createTopics({
+        waitForLeaders: true,
+        topics: [
+          { topic: MESSAGE_CREATED_TOPIC, numPartitions: 3, replicationFactor: 1 },
+          { topic: MESSAGE_CREATED_DLQ_TOPIC, numPartitions: 1, replicationFactor: 1 },
+        ],
+      });
+    } finally {
+      await admin.disconnect();
+    }
+
     await producer.connect();
     producerConnected = true;
 
