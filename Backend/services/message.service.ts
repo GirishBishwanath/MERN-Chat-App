@@ -26,7 +26,7 @@ const serializeMessage = (message: Awaited<ReturnType<typeof createPostgresMessa
   createdAt: message.createdAt.toISOString(), updatedAt: message.updatedAt.toISOString(),
 });
 
-export const sendMessage = async ({ senderId, receiverId, message }: SendMessageInput): Promise<SerializedMessage> => {
+export const sendMessage = async ({ senderId, receiverId, message }: SendMessageInput): Promise<SendMessageResult> => {
   if (senderId === receiverId) throw new AppError("You cannot send a message to yourself", 400, ERROR_CODES.VALIDATION_ERROR);
   if (!(await findUserById(receiverId))) throw new AppError("Receiver not found", 404, ERROR_CODES.NOT_FOUND);
   const conversation = await findDirectConversation(senderId, receiverId) ??
