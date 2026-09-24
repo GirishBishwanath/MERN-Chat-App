@@ -1,4 +1,30 @@
 services:
+  kafka:
+    image: apache/kafka:4.3.1
+    ports:
+      - "${KAFKA_PORT_PUBLISHED:-29092}:29092"
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://:9092,PLAINTEXT_HOST://:29092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_NUM_PARTITIONS: 3
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 >/dev/null 2>&1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 15s
+
   postgres:
     image: postgres:16.10-alpine3.22
     environment:
@@ -46,6 +72,10 @@ services:
       POSTGRES_IDLE_TIMEOUT_MS: ${POSTGRES_IDLE_TIMEOUT_MS:-10000}
       POSTGRES_CONNECTION_TIMEOUT_MS: ${POSTGRES_CONNECTION_TIMEOUT_MS:-5000}
       REDIS_URL: redis://redis:6379/0
+      KAFKA_ENABLED: "true"
+      KAFKA_BROKERS: kafka:9092
+      KAFKA_CLIENT_ID: mern-chat-app-api
+      KAFKA_NOTIFICATION_CONSUMER_GROUP: chat-notification-consumer
     ports:
       - "4002:4002"
     volumes:
@@ -55,6 +85,8 @@ services:
       postgres:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      kafka:
         condition: service_healthy
     healthcheck:
       test:
@@ -100,3 +132,4 @@ services:
 
 volumes:
   postgres-data:
+  kafka-data:
