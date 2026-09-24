@@ -30,7 +30,7 @@ const migrationPool = new Pool({
 
 const ensureCleanDatabase = async (): Promise<void> => {
   await migrationPool.query(
-    "DROP TABLE IF EXISTS sessions, messages, conversation_members, conversations, users CASCADE"
+    "DROP TABLE IF EXISTS notifications, sessions, messages, conversation_members, conversations, users CASCADE"
   );
   await migrationPool.query("DROP TABLE IF EXISTS schema_migrations");
 };
@@ -55,7 +55,10 @@ test("migration runner is idempotent", async () => {
   );
 
   assert.deepEqual(secondResult.rows, firstResult.rows);
-  assert.deepEqual(firstResult.rows, [{ version: "001_initial_schema" }]);
+  assert.deepEqual(firstResult.rows, [
+    { version: "001_initial_schema" },
+    { version: "002_notifications" },
+  ]);
 });
 
 test("migration runner serializes concurrent execution", async () => {
@@ -74,7 +77,10 @@ test("migration runner serializes concurrent execution", async () => {
   const applied = await migrationPool.query(
     "SELECT version FROM schema_migrations ORDER BY version"
   );
-  assert.deepEqual(applied.rows, [{ version: "001_initial_schema" }]);
+  assert.deepEqual(applied.rows, [
+    { version: "001_initial_schema" },
+    { version: "002_notifications" },
+  ]);
 });
 
 test("migration rolls back earlier statements when a migration statement fails", async () => {
