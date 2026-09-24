@@ -34,6 +34,18 @@ export const startMessageNotificationConsumer = async (consumer: Consumer): Prom
   await consumer.subscribe({ topic: MESSAGE_CREATED_TOPIC, fromBeginning: false });
   runningConsumer = consumer;
 
+  const groupJoin = new Promise<void>((resolve, reject) => {
+    const removeListener = consumer.on(consumer.events.GROUP_JOIN, () => {
+      removeListener();
+      resolve();
+    });
+    const timeout = setTimeout(() => {
+      removeListener();
+      reject(new Error("Kafka consumer group join timed out"));
+    }, 10_000);
+    void timeout.unref?.();
+  });
+
   await consumer.run({
     eachMessage: async ({ topic, partition, message }) => {
       const rawValue = message.value?.toString("utf8");
@@ -78,6 +90,7 @@ export const startMessageNotificationConsumer = async (consumer: Consumer): Prom
       }
     },
   });
+  await groupJoin;
 };
 
 export const stopMessageNotificationConsumer = async (): Promise<void> => {
