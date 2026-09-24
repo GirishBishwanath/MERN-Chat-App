@@ -16,6 +16,10 @@ export interface SerializedMessage {
   _id: string; senderId: string; receiverId: string; message: string; createdAt: string; updatedAt: string;
 }
 export interface MessagePageResult { messages: SerializedMessage[]; nextCursor: string | null; hasMore: boolean; limit: number; }
+export interface SendMessageResult {
+  message: SerializedMessage;
+  conversationId: string;
+}
 
 const serializeMessage = (message: Awaited<ReturnType<typeof createPostgresMessage>>, receiverId: string): SerializedMessage => ({
   _id: message.id, senderId: message.senderId, receiverId, message: message.content,
@@ -30,7 +34,10 @@ export const sendMessage = async ({ senderId, receiverId, message }: SendMessage
   const newMessage = await createPostgresMessage({
     conversationId: conversation.id, senderId, content: message.trim(),
   });
-  return serializeMessage(newMessage, receiverId);
+  return {
+    message: serializeMessage(newMessage, receiverId),
+    conversationId: conversation.id,
+  };
 };
 
 export const getMessages = async ({ senderId, chatUserId, limit, cursor }: GetMessagesInput): Promise<MessagePageResult> => {
