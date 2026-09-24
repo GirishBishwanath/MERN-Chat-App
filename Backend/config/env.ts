@@ -56,7 +56,7 @@ const redisUrl = nodeEnv === "production"
   ? required("REDIS_URL")
   : process.env.REDIS_URL?.trim() || "redis://127.0.0.1:6379";
 
-const kafkaEnabled = (process.env.KAFKA_ENABLED?.trim().toLowerCase() ?? "true") !== "false";
+const kafkaEnabled = (process.env.KAFKA_ENABLED?.trim().toLowerCase() ?? "false") === "true";
 const kafkaBrokers = (process.env.KAFKA_BROKERS?.trim() || "127.0.0.1:29092")
   .split(",").map((broker) => broker.trim()).filter(Boolean);
 if (kafkaEnabled && kafkaBrokers.length === 0) {
