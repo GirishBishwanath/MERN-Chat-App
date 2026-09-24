@@ -13,6 +13,7 @@ import { countNotificationsForMessage } from "../repositories/postgres/notificat
 let senderId: string;
 let recipientId: string;
 let messageId: string;
+let conversationId: string;
 
 const waitFor = async (predicate: () => Promise<boolean>, timeoutMs = 5000): Promise<void> => {
   const startedAt = Date.now();
@@ -39,6 +40,7 @@ before(async () => {
   recipientId = recipient.id;
 
   const conversation = await createDirectConversation(senderId, recipientId);
+  conversationId = conversation.id;
   const message = await createMessage({
     conversationId: conversation.id,
     senderId,
@@ -59,15 +61,13 @@ after(async () => {
 test("publishes message.created and processes it into one notification", async () => {
   const event = createMessageCreatedEvent({
     messageId,
-    conversationId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    conversationId,
     senderId,
     recipientId,
     createdAt: new Date().toISOString(),
     correlationId: "kafka-integration-test",
   });
 
-  // The conversation id in the event is only metadata for the transport test; the consumer
-  // uses the message and recipient identifiers for the notification side effect.
   await eventPublisher.publishMessageCreated(event);
 
   await waitFor(async () => (await countNotificationsForMessage(recipientId, messageId)) === 1);
