@@ -54,7 +54,9 @@ before(async () => {
 
 after(async () => {
   await closeKafkaInfrastructure();
-  await postgresPool.query("DELETE FROM users WHERE id = ANY($1::uuid[])", [[senderId, recipientId]]);
+  await postgresPool.query(
+    "TRUNCATE notifications, messages, conversation_members, conversations, users CASCADE"
+  );
   await postgresPool.end();
 });
 
