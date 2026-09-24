@@ -45,6 +45,28 @@ jobs:
           --health-interval=5s
           --health-timeout=3s
           --health-retries=10
+      kafka:
+        image: apache/kafka:4.3.1
+        ports:
+          - 9092:9092
+        env:
+          KAFKA_NODE_ID: 1
+          KAFKA_PROCESS_ROLES: broker,controller
+          KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+          KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+          KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+          KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+          KAFKA_CONTROLLER_QUORUM_VOTERS: 1@localhost:9093
+          KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+          KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+          KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+          KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+          KAFKA_NUM_PARTITIONS: 3
+        options: >-
+          --health-cmd="/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 >/dev/null 2>&1"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
     defaults:
       run:
         working-directory: Backend
@@ -59,6 +81,10 @@ jobs:
       POSTGRES_PASSWORD: postgres
       POSTGRES_SSL: "false"
       REDIS_URL: redis://127.0.0.1:6379/15
+      KAFKA_ENABLED: "true"
+      KAFKA_BROKERS: 127.0.0.1:9092
+      KAFKA_CLIENT_ID: ci-chat-api
+      KAFKA_NOTIFICATION_CONSUMER_GROUP: ci-chat-notification-consumer
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
