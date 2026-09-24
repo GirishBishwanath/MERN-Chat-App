@@ -21,10 +21,11 @@
     "test:security": "tsx --import ./test/setup-env.js --test middleware/securityHardening.test.js validation/user.schemas.test.js auth/session.test.js",
     "test:unit": "tsx --import ./test/setup-env.js --test auth/*.test.js middleware/*.test.js utils/messageCursor.test.ts validation/message.schemas.test.ts",
     "test:api": "tsx --import ./test/setup-env.js --test test/api.integration.test.ts",
-    "test:integration": "npm run test:api && npm run test:postgres",
+    "test:integration": "npm run test:api && npm run test:postgres && npm run test:kafka",
     "test:realtime": "npm run test:redis && npm run test:socket",
-    "test:coverage": "npm run test:prepare && node --import tsx --import ./test/setup-env.js --test --test-concurrency=1 --experimental-test-coverage auth/*.test.js middleware/*.test.js utils/messageCursor.test.ts validation/message.schemas.test.ts test/api.integration.test.ts test/migrate.persistence.test.ts test/postgres.persistence.test.ts infra/redis/redis.test.ts infra/redis/multi-instance.test.ts SocketIO/server.test.ts",
-    "test:prepare": "tsx --import ./test/setup-env.js test/prepare-test-database.ts"
+    "test:coverage": "npm run test:prepare && node --import tsx --import ./test/setup-env.js --test --test-concurrency=1 --experimental-test-coverage auth/*.test.js middleware/*.test.js utils/messageCursor.test.ts validation/message.schemas.test.ts test/api.integration.test.ts test/migrate.persistence.test.ts test/postgres.persistence.test.ts test/kafka.integration.test.ts infra/redis/redis.test.ts infra/redis/multi-instance.test.ts SocketIO/server.test.ts events/contracts.test.ts",
+    "test:prepare": "tsx --import ./test/setup-env.js test/prepare-test-database.ts",
+    "test:kafka": "tsx --import ./test/setup-env.js --test-concurrency=1 --test test/kafka.integration.test.ts"
   },
   "keywords": [
     "MERN"
