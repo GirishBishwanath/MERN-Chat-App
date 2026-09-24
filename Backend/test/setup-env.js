@@ -8,3 +8,8 @@ process.env.POSTGRES_USER = "postgres";
 process.env.POSTGRES_PASSWORD = "postgres";
 process.env.POSTGRES_SSL = "false";
 process.env.REDIS_URL = "redis://127.0.0.1:6379/15";
+
+process.env.KAFKA_ENABLED = "true";
+process.env.KAFKA_BROKERS = "127.0.0.1:29092";
+process.env.KAFKA_CLIENT_ID = "test-chat-api";
+process.env.KAFKA_NOTIFICATION_CONSUMER_GROUP = "test-chat-notification-consumer";
