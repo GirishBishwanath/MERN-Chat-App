@@ -3,6 +3,7 @@ import { MESSAGE_CREATED_DLQ_TOPIC, MESSAGE_CREATED_TOPIC, parseMessageCreatedEv
 import { postgresPool } from "../db/pool.js";
 import { logger } from "../utils/logger.js";
 import { getKafkaProducer } from "../infra/kafka/client.js";
+import { config } from "../config/env.js";
 
 let runningConsumer: Consumer | null = null;
 
@@ -31,7 +32,10 @@ const publishToDlq = async (rawValue: string): Promise<void> => {
 };
 
 export const startMessageNotificationConsumer = async (consumer: Consumer): Promise<void> => {
-  await consumer.subscribe({ topic: MESSAGE_CREATED_TOPIC, fromBeginning: false });
+  await consumer.subscribe({
+    topic: MESSAGE_CREATED_TOPIC,
+    fromBeginning: config.kafka.notificationConsumerFromBeginning,
+  });
   runningConsumer = consumer;
 
   const groupJoin = new Promise<void>((resolve, reject) => {
