@@ -75,6 +75,8 @@ export const config = Object.freeze({
     clientId: process.env.KAFKA_CLIENT_ID?.trim() || "mern-chat-app-api",
     notificationConsumerGroup:
       process.env.KAFKA_NOTIFICATION_CONSUMER_GROUP?.trim() || "chat-notification-consumer",
+    notificationConsumerFromBeginning:
+      (process.env.KAFKA_NOTIFICATION_CONSUMER_FROM_BEGINNING?.trim().toLowerCase() ?? "false") === "true",
   }),
   postgres: Object.freeze({
     host: process.env.POSTGRES_HOST?.trim() || "127.0.0.1",
