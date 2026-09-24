@@ -56,12 +56,28 @@ const redisUrl = nodeEnv === "production"
   ? required("REDIS_URL")
   : process.env.REDIS_URL?.trim() || "redis://127.0.0.1:6379";
 
+const kafkaEnabled = (process.env.KAFKA_ENABLED?.trim().toLowerCase() ?? "false") === "true";
+const kafkaBrokers = (process.env.KAFKA_BROKERS?.trim() || "127.0.0.1:29092")
+  .split(",").map((broker) => broker.trim()).filter(Boolean);
+if (kafkaEnabled && kafkaBrokers.length === 0) {
+  throw new Error("KAFKA_BROKERS must contain at least one broker when Kafka is enabled");
+}
+
 export const config = Object.freeze({
   nodeEnv,
   port: optionalPort("PORT", 4002),
   jwtSecret,
   corsOrigins: parseCorsOrigins(),
   redis: Object.freeze({ url: redisUrl }),
+  kafka: Object.freeze({
+    enabled: kafkaEnabled,
+    brokers: kafkaBrokers,
+    clientId: process.env.KAFKA_CLIENT_ID?.trim() || "mern-chat-app-api",
+    notificationConsumerGroup:
+      process.env.KAFKA_NOTIFICATION_CONSUMER_GROUP?.trim() || "chat-notification-consumer",
+    notificationConsumerFromBeginning:
+      (process.env.KAFKA_NOTIFICATION_CONSUMER_FROM_BEGINNING?.trim().toLowerCase() ?? "false") === "true",
+  }),
   postgres: Object.freeze({
     host: process.env.POSTGRES_HOST?.trim() || "127.0.0.1",
     port: optionalPort("POSTGRES_PORT", 5432),
