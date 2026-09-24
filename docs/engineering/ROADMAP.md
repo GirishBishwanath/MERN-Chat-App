@@ -23,7 +23,7 @@ This roadmap is the version-controlled execution plan for evolving the chat appl
 | 12 | Testing System | Layered unit, integration, realtime, API, security, frontend automation, isolation, and coverage foundations | **Complete; local verification required after final repository commit** |
 | 13 | Docker / Local Development | Production-quality images and reproducible local infrastructure | Pending |
 | 14 | GitHub Actions CI/CD | Automated validation, image builds, staging/smoke verification, rollback strategy | Pending |
-| 15 | Kafka / Event-Driven Architecture | Meaningful domain events, typed envelopes, topic/partition semantics, notification consumer, failure handling, and local/CI Kafka integration | **Implementation complete; verification pending** |
+| 15 | Kafka / Event-Driven Architecture | Meaningful domain events, typed envelopes, topic/partition semantics, notification consumer, failure handling, and local/CI Kafka integration | **Implementation complete; automated CI verification passed; manual local smoke verification pending** |
 | 16 | Outbox / Idempotent Consumers / Reliability | Transactional outbox, duplicate safety, retries, DLQ, failure-mode tests | Pending |
 | 17 | Observability / Incident Debugging | Structured telemetry and actionable production diagnosis | Pending |
 | 18 | Performance / Load Testing | Real measurements, bottleneck identification, reproducible before/after results | Pending |
