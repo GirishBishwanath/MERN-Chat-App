@@ -19,11 +19,11 @@ services:
     volumes:
       - kafka-data:/var/lib/kafka/data
     healthcheck:
-      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 >/dev/null 2>&1"]
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server 127.0.0.1:9092 >/dev/null 2>&1"]
       interval: 5s
       timeout: 5s
-      retries: 20
-      start_period: 15s
+      retries: 30
+      start_period: 30s
 
   postgres:
     image: postgres:16.10-alpine3.22
