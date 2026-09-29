@@ -1,16 +1,18 @@
 process.env.NODE_ENV = "test";
-process.env.JWT_SECRET = "test-only-auth-secret";
-process.env.CORS_ORIGINS = "http://localhost:3001";
-process.env.POSTGRES_HOST = "127.0.0.1";
-process.env.POSTGRES_PORT = "5432";
-process.env.POSTGRES_DATABASE = "mern_chat_app_test";
-process.env.POSTGRES_USER = "postgres";
-process.env.POSTGRES_PASSWORD = "postgres";
-process.env.POSTGRES_SSL = "false";
-process.env.REDIS_URL = "redis://127.0.0.1:6379/15";
+process.env.JWT_SECRET = process.env.JWT_SECRET || "test-only-auth-secret";
+process.env.CORS_ORIGINS = process.env.CORS_ORIGINS || "http://localhost:3001";
+process.env.POSTGRES_HOST = process.env.POSTGRES_HOST || "127.0.0.1";
+process.env.POSTGRES_PORT = process.env.POSTGRES_PORT || "5432";
+process.env.POSTGRES_DATABASE = process.env.POSTGRES_DATABASE || "mern_chat_app_test";
+process.env.POSTGRES_USER = process.env.POSTGRES_USER || "postgres";
+process.env.POSTGRES_PASSWORD = process.env.POSTGRES_PASSWORD || "postgres";
+process.env.POSTGRES_SSL = process.env.POSTGRES_SSL || "false";
+process.env.REDIS_URL = process.env.REDIS_URL || "redis://127.0.0.1:6379/15";
 
-process.env.KAFKA_ENABLED = "true";
-process.env.KAFKA_BROKERS = "127.0.0.1:29092";
-process.env.KAFKA_CLIENT_ID = "test-chat-api";
-process.env.KAFKA_NOTIFICATION_CONSUMER_GROUP = "test-chat-notification-consumer";
-process.env.KAFKA_NOTIFICATION_CONSUMER_FROM_BEGINNING = "true";
+process.env.KAFKA_ENABLED = process.env.KAFKA_ENABLED || "true";
+process.env.KAFKA_BROKERS = process.env.KAFKA_BROKERS || "127.0.0.1:29092";
+process.env.KAFKA_CLIENT_ID = process.env.KAFKA_CLIENT_ID || "test-chat-api";
+process.env.KAFKA_NOTIFICATION_CONSUMER_GROUP =
+  process.env.KAFKA_NOTIFICATION_CONSUMER_GROUP || "test-chat-notification-consumer";
+process.env.KAFKA_NOTIFICATION_CONSUMER_FROM_BEGINNING =
+  process.env.KAFKA_NOTIFICATION_CONSUMER_FROM_BEGINNING || "true";
