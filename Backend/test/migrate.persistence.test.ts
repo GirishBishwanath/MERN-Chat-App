@@ -1,12 +1,12 @@
 process.env.NODE_ENV = "test";
-process.env.JWT_SECRET = "test-only-auth-secret";
-process.env.CORS_ORIGINS = "http://localhost:3001";
-process.env.POSTGRES_HOST = "127.0.0.1";
-process.env.POSTGRES_PORT = "5432";
-process.env.POSTGRES_DATABASE = "mern_chat_app_test";
-process.env.POSTGRES_USER = "postgres";
-process.env.POSTGRES_PASSWORD = "postgres";
-process.env.POSTGRES_SSL = "false";
+process.env.JWT_SECRET ||= "test-only-auth-secret";
+process.env.CORS_ORIGINS ||= "http://localhost:3001";
+process.env.POSTGRES_HOST ||= "127.0.0.1";
+process.env.POSTGRES_PORT ||= "5432";
+process.env.POSTGRES_DATABASE ||= "mern_chat_app_test";
+process.env.POSTGRES_USER ||= "postgres";
+process.env.POSTGRES_PASSWORD ||= "postgres";
+process.env.POSTGRES_SSL ||= "false";
 
 import assert from "node:assert/strict";
 import test from "node:test";
