@@ -13,6 +13,7 @@ process.env.KAFKA_ENABLED = process.env.KAFKA_ENABLED || "true";
 process.env.KAFKA_BROKERS = process.env.KAFKA_BROKERS || "127.0.0.1:29092";
 process.env.KAFKA_CLIENT_ID = process.env.KAFKA_CLIENT_ID || "test-chat-api";
 process.env.KAFKA_NOTIFICATION_CONSUMER_GROUP =
-  process.env.KAFKA_NOTIFICATION_CONSUMER_GROUP || "test-chat-notification-consumer";
+  process.env.KAFKA_NOTIFICATION_CONSUMER_GROUP ||
+  `test-chat-notification-consumer-${process.pid}-${Date.now()}`;
 process.env.KAFKA_NOTIFICATION_CONSUMER_FROM_BEGINNING =
-  process.env.KAFKA_NOTIFICATION_CONSUMER_FROM_BEGINNING || "true";
+  process.env.KAFKA_NOTIFICATION_CONSUMER_FROM_BEGINNING || "false";
