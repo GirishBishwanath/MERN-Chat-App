@@ -78,7 +78,7 @@ export const startMessageNotificationConsumer = async (consumer: Consumer): Prom
           eventType: event.eventType,
           topic,
           partition,
-          consumerGroup: "chat-notification-consumer",
+          consumerGroup: config.kafka.notificationConsumerGroup,
           correlationId: event.correlationId,
         });
       } catch (error: unknown) {
