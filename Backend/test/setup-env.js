@@ -1,5 +1,5 @@
 process.env.NODE_ENV = "test";
-process.env.JWT_SECRET = process.env.JWT_SECRET || "test-only-auth-secret";
+process.env.JWT_SECRET = "test-only-auth-secret";
 process.env.CORS_ORIGINS = process.env.CORS_ORIGINS || "http://localhost:3001";
 process.env.POSTGRES_HOST = process.env.POSTGRES_HOST || "127.0.0.1";
 process.env.POSTGRES_PORT = process.env.POSTGRES_PORT || "5432";
