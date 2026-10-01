@@ -1,49 +1,147 @@
+import type { Pool } from "pg";
 import type { Producer } from "kafkajs";
+
+import { postgresPool } from "../db/pool.js";
 import {
-  MESSAGE_CREATED_TOPIC,
-  type DomainEvent,
-  type MessageCreatedEvent,
-} from "./contracts.js";
-import { getKafkaProducer } from "../infra/kafka/client.js";
+  calculateOutboxBackoffMs,
+  claimPendingOutboxEvents,
+  deadLetterOutboxEvent,
+  markOutboxEventPublished,
+  rescheduleOutboxEvent,
+  type OutboxEvent,
+} from "../repositories/postgres/outbox.repository.js";
 import { logger } from "../utils/logger.js";
 
-export interface EventPublisher {
-  publishMessageCreated(event: MessageCreatedEvent): Promise<void>;
+export interface OutboxRelayOptions {
+  batchSize?: number;
+  leaseMs?: number;
+  maxAttempts?: number;
+  baseBackoffMs?: number;
+  maxBackoffMs?: number;
 }
 
-const publish = async <TEventType extends string, TData>(
+const DEFAULT_OPTIONS: Required<OutboxRelayOptions> = {
+  batchSize: 20,
+  leaseMs: 30_000,
+  maxAttempts: 8,
+  baseBackoffMs: 1_000,
+  maxBackoffMs: 60_000,
+};
+
+const errorMessage = (error: unknown): string =>
+  error instanceof Error ? error.message : "Unknown Kafka publication error";
+
+const publishOutboxEvent = async (
   producer: Producer,
-  topic: string,
-  event: DomainEvent<TEventType, TData>,
-  key: string
+  event: OutboxEvent
 ): Promise<void> => {
   await producer.send({
-    topic,
+    topic: event.topic,
     messages: [{
-      key,
-      value: JSON.stringify(event),
-      headers: {
-        eventId: event.eventId,
-        eventType: event.eventType,
-        version: String(event.version),
-        correlationId: event.correlationId,
-      },
+      key: event.partitionKey,
+      value: JSON.stringify(event.payload),
+      headers: event.headers,
     }],
   });
 };
 
-export const eventPublisher: EventPublisher = {
-  async publishMessageCreated(event) {
-    const producer = getKafkaProducer();
-    if (!producer) throw new Error("Kafka producer is unavailable");
+export const runOutboxRelayOnce = async (
+  producer: Producer,
+  pool: Pool = postgresPool,
+  options: OutboxRelayOptions = {}
+): Promise<number> => {
+  const settings = { ...DEFAULT_OPTIONS, ...options };
+  const events = await claimPendingOutboxEvents(pool, settings.batchSize, settings.leaseMs);
 
-    await publish(producer, MESSAGE_CREATED_TOPIC, event, event.data.conversationId);
-    logger.info("kafka_event_published", {
-      eventId: event.eventId,
-      eventType: event.eventType,
-      topic: MESSAGE_CREATED_TOPIC,
-      aggregateId: event.aggregateId,
-      correlationId: event.correlationId,
-    });
-  },
+  for (const event of events) {
+    try {
+      await publishOutboxEvent(producer, event);
+      await markOutboxEventPublished(pool, event.id);
+
+      logger.info("outbox_event_published", {
+        outboxEventId: event.id,
+        eventId: event.payload.eventId,
+        eventType: event.eventType,
+        aggregateId: event.aggregateId,
+        topic: event.topic,
+        attemptCount: event.attemptCount,
+        correlationId: event.payload.correlationId,
+      });
+    } catch (error: unknown) {
+      const message = errorMessage(error);
+
+      if (event.attemptCount >= settings.maxAttempts) {
+        await deadLetterOutboxEvent(pool, event.id, message);
+        logger.error("outbox_event_dead_lettered", {
+          outboxEventId: event.id,
+          eventId: event.payload.eventId,
+          eventType: event.eventType,
+          aggregateId: event.aggregateId,
+          topic: event.topic,
+          attemptCount: event.attemptCount,
+          error: message,
+        });
+        continue;
+      }
+
+      const delayMs = calculateOutboxBackoffMs(
+        event.attemptCount,
+        settings.baseBackoffMs,
+        settings.maxBackoffMs
+      );
+      const nextAttemptAt = new Date(Date.now() + delayMs);
+
+      await rescheduleOutboxEvent(pool, event.id, nextAttemptAt, message);
+      logger.warn("outbox_event_retry_scheduled", {
+        outboxEventId: event.id,
+        eventId: event.payload.eventId,
+        eventType: event.eventType,
+        aggregateId: event.aggregateId,
+        topic: event.topic,
+        attemptCount: event.attemptCount,
+        retryDelayMs: delayMs,
+        error: message,
+      });
+    }
+  }
+
+  return events.length;
+};
+
+let relayTimer: NodeJS.Timeout | null = null;
+let relayRunning = false;
+
+export const startOutboxRelay = (
+  producer: Producer,
+  pool: Pool = postgresPool,
+  options: OutboxRelayOptions = {},
+  pollIntervalMs = 1_000
+): void => {
+  if (relayTimer) return;
+
+  const poll = async (): Promise<void> => {
+    if (relayRunning) return;
+    relayRunning = true;
+    try {
+      await runOutboxRelayOnce(producer, pool, options);
+    } catch (error: unknown) {
+      logger.error("outbox_relay_failed", {
+        errorName: error instanceof Error ? error.name : "UnknownError",
+        error: errorMessage(error),
+      });
+    } finally {
+      relayRunning = false;
+    }
+  };
+
+  void poll();
+  relayTimer = setInterval(() => void poll(), Math.max(pollIntervalMs, 100));
+  relayTimer.unref();
+};
+
+export const stopOutboxRelay = (): void => {
+  if (!relayTimer) return;
+  clearInterval(relayTimer);
+  relayTimer = null;
+  relayRunning = false;
 };
