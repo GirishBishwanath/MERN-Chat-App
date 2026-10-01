@@ -14,7 +14,7 @@ const CONSUMER_NAME = config.kafka.notificationConsumerGroup;
 
 let runningConsumer: Consumer | null = null;
 
-const createNotification = async (
+export const processMessageCreatedEvent = async (
   event: ReturnType<typeof parseMessageCreatedEvent>
 ): Promise<"processed" | "duplicate"> => {
   const client = await postgresPool.connect();
@@ -109,7 +109,7 @@ export const startMessageNotificationConsumer = async (consumer: Consumer): Prom
       }
 
       try {
-        const result = await createNotification(event);
+        const result = await processMessageCreatedEvent(event);
         logger.info(
           result === "duplicate" ? "kafka_event_duplicate_ignored" : "kafka_event_processed",
           {
