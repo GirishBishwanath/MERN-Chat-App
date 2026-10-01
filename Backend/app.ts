@@ -1,11 +1,12 @@
-import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
+import express from "express";
 
 import { config } from "./config/env.js";
 import userRoute from "./routes/user.route.js";
 import messageRoute from "./routes/message.route.js";
 import healthRoute from "./routes/health.route.js";
+import metricsRoute from "./routes/metrics.route.js";
 import { app } from "./SocketIO/server.js";
 import { requestContext } from "./middleware/requestContext.js";
 import { securityHeaders } from "./middleware/securityHeaders.js";
@@ -22,12 +23,19 @@ app.use(cors({
   },
   credentials: true,
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Accept", "X-Request-Id"],
+  allowedHeaders: [
+    "Content-Type",
+    "Authorization",
+    "X-Requested-With",
+    "Accept",
+    "X-Request-Id",
+  ],
 }));
 app.use(express.json({ limit: "16kb" }));
 app.use(cookieParser());
 
 app.use("/health", healthRoute);
+app.use("/metrics", metricsRoute);
 app.use(verifyRequestOrigin);
 app.use("/api/user", userRoute);
 app.use("/api/message", messageRoute);
