@@ -2,7 +2,7 @@
 
 ## Status
 
-Implementation complete pending final repository verification.
+Complete — CI verification passed on the final branch head.
 
 ## Problem
 
