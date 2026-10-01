@@ -3,8 +3,7 @@ import express, { type Request, type Response } from "express";
 import { verifyPostgresConnection } from "../db/pool.js";
 import { getKafkaHealthSnapshot } from "../infra/kafka/client.js";
 import { verifyRedisConnection } from "../infra/redis/client.js";
-
-type DependencyStatus = "connected" | "unavailable" | "disabled";
+import { logger } from "../utils/logger.js";
 
 const router = express.Router();
 
@@ -13,37 +12,42 @@ router.get("/live", (_req: Request, res: Response) => {
 });
 
 router.get("/ready", async (_req: Request, res: Response) => {
-  const dependencies: Record<string, DependencyStatus> = {};
+  let database = "unavailable";
+  let redis = "unavailable";
 
   try {
     await verifyPostgresConnection();
-    dependencies.database = "connected";
+    database = "connected";
   } catch {
-    dependencies.database = "unavailable";
+    database = "unavailable";
   }
 
   try {
     await verifyRedisConnection();
-    dependencies.redis = "connected";
+    redis = "connected";
   } catch {
-    dependencies.redis = "unavailable";
+    redis = "unavailable";
   }
 
   const kafka = getKafkaHealthSnapshot();
-  dependencies.kafka = kafka.enabled
-    ? (kafka.connected ? "connected" : "unavailable")
-    : "disabled";
+  logger.debug("health_readiness_dependencies", {
+    database,
+    redis,
+    kafka: kafka.enabled ? (kafka.connected ? "connected" : "unavailable") : "disabled",
+  });
 
-  if (dependencies.database !== "connected" || dependencies.redis !== "connected") {
+  if (database !== "connected" || redis !== "connected") {
     return res.status(503).json({
       status: "not_ready",
-      dependencies,
+      database,
+      redis,
     });
   }
 
   return res.status(200).json({
     status: "ready",
-    dependencies,
+    database,
+    redis,
   });
 });
 
