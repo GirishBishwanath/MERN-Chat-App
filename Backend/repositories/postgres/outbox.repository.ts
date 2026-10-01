@@ -110,11 +110,13 @@ export const claimPendingOutboxEvents = async (
         SELECT candidate.id
         FROM outbox_events AS candidate
         WHERE (
-          candidate.status = 'pending'
-          AND candidate.available_at <= NOW()
-        ) OR (
-          candidate.status = 'processing'
-          AND candidate.locked_until <= NOW()
+          (
+            candidate.status = 'pending'
+            AND candidate.available_at <= NOW()
+          ) OR (
+            candidate.status = 'processing'
+            AND candidate.locked_until <= NOW()
+          )
         )
         AND NOT EXISTS (
           SELECT 1
