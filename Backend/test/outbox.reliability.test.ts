@@ -55,6 +55,15 @@ const createFakeProducer = (
   },
 } as unknown as Producer);
 
+const getOutboxIdByMessageId = async (messageId: string): Promise<string> => {
+  const result = await postgresPool.query(
+    "SELECT id FROM outbox_events WHERE payload->'data'->>'messageId' = $1",
+    [messageId]
+  );
+  assert.equal(result.rowCount, 1);
+  return String(result.rows[0].id);
+};
+
 const createUsers = async () => {
   const suffix = randomUUID();
   const sender = await createUser({
@@ -93,7 +102,7 @@ test("message creation commits the message and outbox event atomically", async (
   });
 
   const rows = await postgresPool.query(
-    "SELECT id, aggregate_id, topic, status, payload FROM outbox_events WHERE id = $1",
+    "SELECT id, aggregate_id, topic, status, payload FROM outbox_events WHERE payload->'data'->>'messageId' = $1",
     [result.message._id]
   );
 
@@ -167,6 +176,7 @@ test("relay publishes the stored event envelope and marks it published", async (
     correlationId: randomUUID(),
   });
 
+  const outboxId = await getOutboxIdByMessageId(result.message._id);
   const published: PublishedMessage[] = [];
   const producer = createFakeProducer(async (message) => {
     published.push(message);
@@ -178,7 +188,7 @@ test("relay publishes the stored event envelope and marks it published", async (
 
   const stored = await postgresPool.query(
     "SELECT status, payload FROM outbox_events WHERE id = $1",
-    [result.message._id]
+    [outboxId]
   );
 
   assert.equal(stored.rows[0].status, "published");
@@ -194,6 +204,7 @@ test("failed publication is retried with durable backoff and eventually dead-let
     correlationId: randomUUID(),
   });
 
+  const outboxId = await getOutboxIdByMessageId(result.message._id);
   const producer = createFakeProducer(async () => {
     throw new Error("Kafka unavailable");
   });
@@ -206,7 +217,7 @@ test("failed publication is retried with durable backoff and eventually dead-let
 
   let row = await postgresPool.query(
     "SELECT status, attempt_count, available_at, last_error FROM outbox_events WHERE id = $1",
-    [result.message._id]
+    [outboxId]
   );
   assert.equal(row.rows[0].status, "pending");
   assert.equal(row.rows[0].attempt_count, 1);
@@ -215,7 +226,7 @@ test("failed publication is retried with durable backoff and eventually dead-let
 
   await postgresPool.query(
     "UPDATE outbox_events SET available_at = NOW() WHERE id = $1",
-    [result.message._id]
+    [outboxId]
   );
 
   await runOutboxRelayOnce(producer, postgresPool, {
@@ -226,7 +237,7 @@ test("failed publication is retried with durable backoff and eventually dead-let
 
   row = await postgresPool.query(
     "SELECT status, attempt_count, last_error FROM outbox_events WHERE id = $1",
-    [result.message._id]
+    [outboxId]
   );
   assert.equal(row.rows[0].status, "dead_lettered");
   assert.equal(row.rows[0].attempt_count, 2);
@@ -242,18 +253,19 @@ test("expired processing leases are reclaimed after a publisher crash", async ()
     correlationId: randomUUID(),
   });
 
+  const outboxId = await getOutboxIdByMessageId(result.message._id);
   const firstClaim = await claimPendingOutboxEvents(postgresPool, 1, 1_000);
   assert.equal(firstClaim.length, 1);
-  assert.equal(firstClaim[0].id, result.message._id);
+  assert.equal(firstClaim[0].id, outboxId);
 
   await postgresPool.query(
     "UPDATE outbox_events SET locked_until = NOW() - INTERVAL '1 second' WHERE id = $1",
-    [result.message._id]
+    [outboxId]
   );
 
   const recovered = await claimPendingOutboxEvents(postgresPool, 1, 1_000);
   assert.equal(recovered.length, 1);
-  assert.equal(recovered[0].id, result.message._id);
+  assert.equal(recovered[0].id, outboxId);
   assert.equal(recovered[0].attemptCount, 2);
 });
 
@@ -302,7 +314,7 @@ test("same conversation keeps its earliest unfinished outbox event ahead of late
 
   const claims = await claimPendingOutboxEvents(postgresPool, 10, 30_000);
   assert.equal(claims.length, 1);
-  assert.equal(claims[0].id, firstMessageId);
+  assert.equal(claims[0].id, firstEvent.eventId);
 });
 
 test("notification consumer ignores duplicate event delivery without duplicating the side effect", async () => {
