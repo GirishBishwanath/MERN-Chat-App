@@ -2,6 +2,9 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
+const LOG_LEVELS = ["debug", "info", "warn", "error"] as const;
+type LogLevel = typeof LOG_LEVELS[number];
+
 const required = (name: string): string => {
   const value = process.env[name]?.trim();
   if (!value) throw new Error(name + " environment variable is not configured");
@@ -63,8 +66,19 @@ if (kafkaEnabled && kafkaBrokers.length === 0) {
   throw new Error("KAFKA_BROKERS must contain at least one broker when Kafka is enabled");
 }
 
+const parseLogLevel = (): LogLevel => {
+  const fallback: LogLevel =
+    nodeEnv === "production" ? "info" : "debug";
+  const value = process.env.LOG_LEVEL?.trim().toLowerCase() || fallback;
+  if (!(LOG_LEVELS as readonly string[]).includes(value)) {
+    throw new Error("LOG_LEVEL must be one of debug, info, warn, or error");
+  }
+  return value as LogLevel;
+};
+
 export const config = Object.freeze({
   nodeEnv,
+  logLevel: parseLogLevel(),
   port: optionalPort("PORT", 4002),
   jwtSecret,
   corsOrigins: parseCorsOrigins(),
