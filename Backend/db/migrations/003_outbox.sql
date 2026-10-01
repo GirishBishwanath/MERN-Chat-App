@@ -37,3 +37,10 @@ CREATE INDEX outbox_aggregate_order_idx
 
 CREATE INDEX outbox_status_created_idx
     ON outbox_events (status, created_at, id);
+
+CREATE TABLE processed_events (
+    consumer_name VARCHAR(150) NOT NULL,
+    event_id UUID NOT NULL,
+    processed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (consumer_name, event_id)
+);
