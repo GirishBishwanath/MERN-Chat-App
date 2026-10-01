@@ -223,6 +223,41 @@ export const deadLetterOutboxEvent = async (
   );
 };
 
+
+export const getOutboxOperationalSnapshot = async (
+  pool: Pool = postgresPool
+): Promise<{
+  pending: number;
+  processing: number;
+  oldestPendingAgeSeconds: number;
+}> => {
+  const result = await pool.query(
+    `
+      SELECT
+        COUNT(*) FILTER (WHERE status = 'pending')::bigint AS pending,
+        COUNT(*) FILTER (WHERE status = 'processing')::bigint AS processing,
+        COALESCE(
+          EXTRACT(
+            EPOCH FROM (
+              NOW() - MIN(created_at) FILTER (WHERE status = 'pending')
+            )
+          ),
+          0
+        ) AS oldest_pending_age_seconds
+      FROM outbox_events
+      WHERE status IN ('pending', 'processing')
+    `
+  );
+
+  return {
+    pending: Number(result.rows[0]?.pending ?? 0),
+    processing: Number(result.rows[0]?.processing ?? 0),
+    oldestPendingAgeSeconds: Number(
+      result.rows[0]?.oldest_pending_age_seconds ?? 0
+    ),
+  };
+};
+
 export const calculateOutboxBackoffMs = (
   attemptCount: number,
   baseDelayMs = 1_000,
