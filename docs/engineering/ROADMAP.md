@@ -24,7 +24,7 @@ This roadmap is the version-controlled execution plan for evolving the chat appl
 | 13 | Docker / Local Development | Production-quality images and reproducible local infrastructure | Pending |
 | 14 | GitHub Actions CI/CD | Automated validation, image builds, staging/smoke verification, rollback strategy | Pending |
 | 15 | Kafka / Event-Driven Architecture | Meaningful domain events, typed envelopes, topic/partition semantics, notification consumer, failure handling, and local/CI Kafka integration | **Implementation complete; automated CI verification passed; manual local smoke verification pending** |
-| 16 | Outbox / Idempotent Consumers / Reliability | Transactional outbox, duplicate safety, retries, DLQ, failure-mode tests | Pending |
+| 16 | Outbox / Idempotent Consumers / Reliability | Transactional outbox, duplicate safety, retries, DLQ, failure-mode tests | **Complete; CI verification passed on final branch head** |
 | 17 | Observability / Incident Debugging | Structured telemetry and actionable production diagnosis | Pending |
 | 18 | Performance / Load Testing | Real measurements, bottleneck identification, reproducible before/after results | Pending |
 | 19 | GenAI / RAG Product Capability | Product-integrated AI with access control, cost/failure/privacy controls and evaluation | Pending |
@@ -149,3 +149,16 @@ Phase 15 introduces a single justified asynchronous domain workflow:
 - Malformed events are validated and routed to chat.message.dlq.v1 when possible.
 - Kafka is best-effort for the core API; PostgreSQL and Socket.IO remain on the synchronous user-facing path.
 - The Transactional Outbox is explicitly deferred to Phase 16.
+
+### Phase 16 implementation record
+
+Phase 16 replaces direct request-path Kafka publication with a PostgreSQL Transactional Outbox:
+
+- message persistence and the exact `message.created` event envelope are committed in one PostgreSQL transaction.
+- `outbox_events` stores durable publication intent, immutable payload, topic, conversation ordering key, retry state, lease state, and failure metadata.
+- a polling Kafka relay claims rows with `FOR UPDATE SKIP LOCKED`, uses leases for crash recovery, preserves per-conversation ordering, and supports multiple workers.
+- publication is explicitly at-least-once; a crash after Kafka acceptance can produce a duplicate.
+- notification consumption records `(consumer_name, event_id)` transactionally with the notification side effect, making duplicate delivery safe.
+- transient publication failures use bounded exponential backoff; events that exceed the configured attempt limit become durable `dead_lettered` outbox records.
+- Phase 16 reliability tests cover atomicity, rollback, exact payload publication, retries, dead-lettering, lease recovery, ordering, and duplicate consumer delivery.
+- Kafka, PostgreSQL, and Redis remain the only infrastructure dependencies; no CDC/Kafka Connect system was introduced.

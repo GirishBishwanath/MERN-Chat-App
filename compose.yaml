@@ -76,6 +76,10 @@ services:
       KAFKA_BROKERS: kafka:9092
       KAFKA_CLIENT_ID: mern-chat-app-api
       KAFKA_NOTIFICATION_CONSUMER_GROUP: chat-notification-consumer
+      OUTBOX_BATCH_SIZE: ${OUTBOX_BATCH_SIZE:-20}
+      OUTBOX_LEASE_MS: ${OUTBOX_LEASE_MS:-30000}
+      OUTBOX_MAX_ATTEMPTS: ${OUTBOX_MAX_ATTEMPTS:-8}
+      OUTBOX_POLL_INTERVAL_MS: ${OUTBOX_POLL_INTERVAL_MS:-1000}
     ports:
       - "4002:4002"
     volumes:

@@ -2,6 +2,7 @@ import { Kafka, logLevel, type Consumer, type Producer } from "kafkajs";
 import { config } from "../../config/env.js";
 import { logger } from "../../utils/logger.js";
 import { startMessageNotificationConsumer, stopMessageNotificationConsumer } from "../../events/message-notification.consumer.js";
+import { startOutboxRelay, stopOutboxRelay } from "../../events/publisher.js";
 import { MESSAGE_CREATED_DLQ_TOPIC, MESSAGE_CREATED_TOPIC } from "../../events/contracts.js";
 
 const kafka = new Kafka({
@@ -52,6 +53,16 @@ export const initializeKafkaInfrastructure = async (): Promise<boolean> => {
     consumerConnected = true;
 
     await startMessageNotificationConsumer(consumer);
+    startOutboxRelay(
+      producer,
+      undefined,
+      {
+        batchSize: config.outbox.batchSize,
+        leaseMs: config.outbox.leaseMs,
+        maxAttempts: config.outbox.maxAttempts,
+      },
+      config.outbox.pollIntervalMs
+    );
     logger.info("kafka_infrastructure_initialized", {
       brokers: config.kafka.brokers,
       notificationConsumerGroup: config.kafka.notificationConsumerGroup,
@@ -69,6 +80,7 @@ export const initializeKafkaInfrastructure = async (): Promise<boolean> => {
 };
 
 export const closeKafkaInfrastructure = async (): Promise<void> => {
+  stopOutboxRelay();
   await stopMessageNotificationConsumer();
   if (consumerConnected) {
     try { await consumer.disconnect(); } catch { /* best-effort shutdown */ }

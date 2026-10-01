@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { postgresPool } from "../../db/pool.js";
+import type { PoolClient } from "pg";
 import type { MessageCursor } from "../../utils/messageCursor.js";
 
 export interface PostgresMessage {
@@ -10,15 +11,26 @@ const mapMessage = (row: Record<string, unknown>): PostgresMessage => ({
   content: String(row.content), createdAt: new Date(String(row.created_at)), updatedAt: new Date(String(row.updated_at)),
 });
 
-export const createMessage = async (input: {
+export const createMessageWithClient = async (client: PoolClient, input: {
   conversationId: string; senderId: string; content: string; id?: string;
 }): Promise<PostgresMessage> => {
-  const result = await postgresPool.query(`
+  const result = await client.query(`
     INSERT INTO messages (id, conversation_id, sender_id, content)
     VALUES ($1, $2, $3, $4)
     RETURNING id, conversation_id, sender_id, content, created_at, updated_at
   `, [input.id ?? randomUUID(), input.conversationId, input.senderId, input.content]);
   return mapMessage(result.rows[0]);
+};
+
+export const createMessage = async (input: {
+  conversationId: string; senderId: string; content: string; id?: string;
+}): Promise<PostgresMessage> => {
+  const client = await postgresPool.connect();
+  try {
+    return await createMessageWithClient(client, input);
+  } finally {
+    client.release();
+  }
 };
 
 export const findMessageById = async (id: string): Promise<PostgresMessage | null> => {

@@ -69,6 +69,12 @@ export const config = Object.freeze({
   jwtSecret,
   corsOrigins: parseCorsOrigins(),
   redis: Object.freeze({ url: redisUrl }),
+  outbox: Object.freeze({
+    batchSize: positiveInt("OUTBOX_BATCH_SIZE", 20),
+    leaseMs: positiveInt("OUTBOX_LEASE_MS", 30_000),
+    maxAttempts: positiveInt("OUTBOX_MAX_ATTEMPTS", 8),
+    pollIntervalMs: positiveInt("OUTBOX_POLL_INTERVAL_MS", 1_000),
+  }),
   kafka: Object.freeze({
     enabled: kafkaEnabled,
     brokers: kafkaBrokers,
