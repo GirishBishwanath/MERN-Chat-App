@@ -53,7 +53,16 @@ export const initializeKafkaInfrastructure = async (): Promise<boolean> => {
     consumerConnected = true;
 
     await startMessageNotificationConsumer(consumer);
-    startOutboxRelay(producer);
+    startOutboxRelay(
+      producer,
+      undefined,
+      {
+        batchSize: config.outbox.batchSize,
+        leaseMs: config.outbox.leaseMs,
+        maxAttempts: config.outbox.maxAttempts,
+      },
+      config.outbox.pollIntervalMs
+    );
     logger.info("kafka_infrastructure_initialized", {
       brokers: config.kafka.brokers,
       notificationConsumerGroup: config.kafka.notificationConsumerGroup,
