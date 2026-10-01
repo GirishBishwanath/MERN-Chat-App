@@ -81,6 +81,7 @@ test("migration runner serializes concurrent execution", async () => {
   assert.deepEqual(applied.rows, [
     { version: "001_initial_schema" },
     { version: "002_notifications" },
+    { version: "003_outbox" },
   ]);
 });
 
