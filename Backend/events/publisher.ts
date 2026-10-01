@@ -11,6 +11,10 @@ import {
   type OutboxEvent,
 } from "../repositories/postgres/outbox.repository.js";
 import { logger } from "../utils/logger.js";
+import {
+  incrementCounter,
+  observeHistogram,
+} from "../observability/metrics.js";
 
 export interface OutboxRelayOptions {
   batchSize?: number;
@@ -35,14 +39,35 @@ const publishOutboxEvent = async (
   producer: Producer,
   event: OutboxEvent
 ): Promise<void> => {
-  await producer.send({
+  const startedAt = process.hrtime.bigint();
+
+  incrementCounter("kafka_publish_total", {
+    event_type: event.eventType,
     topic: event.topic,
-    messages: [{
-      key: event.partitionKey,
-      value: JSON.stringify(event.payload),
-      headers: event.headers,
-    }],
   });
+
+  try {
+    await producer.send({
+      topic: event.topic,
+      messages: [{
+        key: event.partitionKey,
+        value: JSON.stringify(event.payload),
+        headers: event.headers,
+      }],
+    });
+
+    observeHistogram(
+      "outbox_publication_duration_seconds",
+      Number(process.hrtime.bigint() - startedAt) / 1e9,
+      { topic: event.topic }
+    );
+  } catch (error) {
+    incrementCounter("kafka_publish_failures_total", {
+      event_type: event.eventType,
+      topic: event.topic,
+    });
+    throw error;
+  }
 };
 
 export const runOutboxRelayOnce = async (
@@ -51,12 +76,20 @@ export const runOutboxRelayOnce = async (
   options: OutboxRelayOptions = {}
 ): Promise<number> => {
   const settings = { ...DEFAULT_OPTIONS, ...options };
-  const events = await claimPendingOutboxEvents(pool, settings.batchSize, settings.leaseMs);
+  const events = await claimPendingOutboxEvents(
+    pool,
+    settings.batchSize,
+    settings.leaseMs
+  );
 
   for (const event of events) {
     try {
       await publishOutboxEvent(producer, event);
       await markOutboxEventPublished(pool, event.id);
+
+      incrementCounter("outbox_published_total", {
+        event_type: event.eventType,
+      });
 
       logger.info("outbox_event_published", {
         outboxEventId: event.id,
@@ -72,6 +105,10 @@ export const runOutboxRelayOnce = async (
 
       if (event.attemptCount >= settings.maxAttempts) {
         await deadLetterOutboxEvent(pool, event.id, message);
+        incrementCounter("outbox_dead_lettered_total", {
+          event_type: event.eventType,
+        });
+
         logger.error("outbox_event_dead_lettered", {
           outboxEventId: event.id,
           eventId: event.payload.eventId,
@@ -80,6 +117,7 @@ export const runOutboxRelayOnce = async (
           topic: event.topic,
           attemptCount: event.attemptCount,
           error: message,
+          correlationId: event.payload.correlationId,
         });
         continue;
       }
@@ -89,9 +127,18 @@ export const runOutboxRelayOnce = async (
         settings.baseBackoffMs,
         settings.maxBackoffMs
       );
-      const nextAttemptAt = new Date(Date.now() + delayMs);
 
-      await rescheduleOutboxEvent(pool, event.id, nextAttemptAt, message);
+      await rescheduleOutboxEvent(
+        pool,
+        event.id,
+        new Date(Date.now() + delayMs),
+        message
+      );
+
+      incrementCounter("outbox_retry_total", {
+        event_type: event.eventType,
+      });
+
       logger.warn("outbox_event_retry_scheduled", {
         outboxEventId: event.id,
         eventId: event.payload.eventId,
@@ -101,6 +148,7 @@ export const runOutboxRelayOnce = async (
         attemptCount: event.attemptCount,
         retryDelayMs: delayMs,
         error: message,
+        correlationId: event.payload.correlationId,
       });
     }
   }
@@ -122,12 +170,12 @@ export const startOutboxRelay = (
   const poll = async (): Promise<void> => {
     if (relayRunning) return;
     relayRunning = true;
+
     try {
       await runOutboxRelayOnce(producer, pool, options);
     } catch (error: unknown) {
       logger.error("outbox_relay_failed", {
         errorName: error instanceof Error ? error.name : "UnknownError",
-        error: errorMessage(error),
       });
     } finally {
       relayRunning = false;
