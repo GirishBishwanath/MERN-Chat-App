@@ -28,6 +28,7 @@ A full-stack real-time messaging platform enabling communication with server-aut
 - **Database:** PostgreSQL
 - **Ephemeral/distributed state:** Redis (presence, Socket.IO adapter, authentication rate limiting)
 - **Authentication:** JWT access credentials, PostgreSQL-backed refresh sessions, bcrypt
+- **Event-driven processing:** Apache Kafka with versioned domain events and a notification consumer
 
 ---
 
@@ -186,7 +187,8 @@ Browser
    └── localhost:4002 → Backend/Socket.IO
                            │
                            ├── postgres:5432 → PostgreSQL
-                           └── redis:6379   → Redis
+                           ├── redis:6379   → Redis
+                           └── kafka:9092    → Kafka
 ```
 
 Prerequisite: Docker Desktop with Docker Compose v2.
@@ -268,7 +270,7 @@ npm run test:socket
 npm run test:security
 ```
 
-PostgreSQL and Redis tests use local test infrastructure and synthetic credentials. See `docs/engineering/PHASE-12-TESTING.md` for the testing architecture and current limitations.
+PostgreSQL, Redis, and Kafka integration tests use local test infrastructure and synthetic credentials. Start the Docker stack before running the full backend suite so Kafka integration tests have a broker available. See docs/engineering/PHASE-12-TESTING.md and docs/engineering/PHASE-15-KAFKA-EVENT-DRIVEN.md.
 
 ## 🔄 GitHub Actions CI/CD
 
@@ -297,5 +299,5 @@ Each image receives the full source commit SHA as an immutable tag and also a mu
 
 Phase 14 stops at artifact publication. The repository does not claim an AWS/Kubernetes production deployment yet; cloud deployment and promotion are intentionally deferred to the later infrastructure phase.
 
-See [Phase 14 GitHub Actions CI/CD](docs/engineering/PHASE-14-GITHUB-ACTIONS-CICD.md) and [ADR 004](docs/adr/004-github-actions-cicd.md).
+See [Phase 14 GitHub Actions CI/CD](docs/engineering/PHASE-14-GITHUB-ACTIONS-CICD.md), [Phase 15 Kafka event-driven architecture](docs/engineering/PHASE-15-KAFKA-EVENT-DRIVEN.md), [ADR 004](docs/adr/004-github-actions-cicd.md), and [ADR 013](docs/adr/013-kafka-event-driven-architecture.md).
 

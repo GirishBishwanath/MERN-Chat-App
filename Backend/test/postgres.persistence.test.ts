@@ -40,7 +40,7 @@ const {
 
 const ensureCleanDatabase = async (): Promise<void> => {
   await postgresPool.query(
-    "DROP TABLE IF EXISTS sessions, messages, conversation_members, conversations, users CASCADE"
+    "DROP TABLE IF EXISTS notifications, sessions, messages, conversation_members, conversations, users CASCADE"
   );
   await postgresPool.query("DROP TABLE IF EXISTS schema_migrations");
 };
@@ -50,7 +50,7 @@ await runMigrations();
 
 const cleanup = async (): Promise<void> => {
   await postgresPool.query(
-    "TRUNCATE sessions, messages, conversation_members, conversations, users CASCADE"
+    "TRUNCATE notifications, sessions, messages, conversation_members, conversations, users CASCADE"
   );
 };
 

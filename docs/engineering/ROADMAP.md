@@ -23,7 +23,7 @@ This roadmap is the version-controlled execution plan for evolving the chat appl
 | 12 | Testing System | Layered unit, integration, realtime, API, security, frontend automation, isolation, and coverage foundations | **Complete; local verification required after final repository commit** |
 | 13 | Docker / Local Development | Production-quality images and reproducible local infrastructure | Pending |
 | 14 | GitHub Actions CI/CD | Automated validation, image builds, staging/smoke verification, rollback strategy | Pending |
-| 15 | Kafka / Event-Driven Architecture | Meaningful domain events, typed envelopes, retries, ordering, observability | Pending |
+| 15 | Kafka / Event-Driven Architecture | Meaningful domain events, typed envelopes, topic/partition semantics, notification consumer, failure handling, and local/CI Kafka integration | **Implementation complete; automated CI verification passed; manual local smoke verification pending** |
 | 16 | Outbox / Idempotent Consumers / Reliability | Transactional outbox, duplicate safety, retries, DLQ, failure-mode tests | Pending |
 | 17 | Observability / Incident Debugging | Structured telemetry and actionable production diagnosis | Pending |
 | 18 | Performance / Load Testing | Real measurements, bottleneck identification, reproducible before/after results | Pending |
@@ -135,3 +135,17 @@ Phase 10 introduced Redis only for the concrete distributed realtime problem ide
 - The cross-instance adapter integration test uses a dedicated Redis database and closes all Redis clients so the Node test runner exits cleanly.
 
 Final Phase 10 acceptance requires the latest local regression suite to pass after the final presence/test adjustments.
+
+
+### Phase 15 implementation record
+
+Phase 15 introduces a single justified asynchronous domain workflow:
+
+- message.created is published after successful PostgreSQL message persistence.
+- Kafka topic chat.message.v1 is keyed by conversationId and uses three local-development partitions.
+- The event envelope is versioned and carries event/correlation metadata.
+- chat-notification-consumer creates a PostgreSQL notification record for the recipient.
+- Duplicate notification delivery is protected by a database uniqueness constraint rather than a generic Phase 16 idempotency store.
+- Malformed events are validated and routed to chat.message.dlq.v1 when possible.
+- Kafka is best-effort for the core API; PostgreSQL and Socket.IO remain on the synchronous user-facing path.
+- The Transactional Outbox is explicitly deferred to Phase 16.

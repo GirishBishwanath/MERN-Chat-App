@@ -3,12 +3,14 @@ import { closePostgresPool, verifyPostgresConnection } from "./db/pool.js";
 import { app } from "./app.js";
 import { closeSocketInfrastructure, initializeRedisAdapter, server } from "./SocketIO/server.js";
 import { logger } from "./utils/logger.js";
+import { initializeKafkaInfrastructure, closeKafkaInfrastructure } from "./infra/kafka/client.js";
 
 const startServer = async (): Promise<void> => {
   await verifyPostgresConnection();
   logger.info("database_connected", { database: "postgresql" });
   await initializeRedisAdapter();
   logger.info("redis_adapter_initialized");
+  await initializeKafkaInfrastructure();
   server.listen(config.port, "0.0.0.0", () =>
     logger.info("server_started", { port: config.port })
   );
@@ -17,6 +19,7 @@ const startServer = async (): Promise<void> => {
 const shutdown = async (signal: string): Promise<void> => {
   logger.info("server_shutdown_started", { signal });
   try {
+    await closeKafkaInfrastructure();
     await closeSocketInfrastructure();
     await closePostgresPool();
     logger.info("server_shutdown_completed");
