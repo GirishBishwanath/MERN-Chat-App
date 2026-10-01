@@ -9,15 +9,16 @@ import { postgresPool } from "../db/pool.js";
 import { logger } from "../utils/logger.js";
 import { getKafkaProducer } from "../infra/kafka/client.js";
 import { config } from "../config/env.js";
+import { incrementCounter } from "../observability/metrics.js";
 
 const CONSUMER_NAME = config.kafka.notificationConsumerGroup;
-
 let runningConsumer: Consumer | null = null;
 
 export const processMessageCreatedEvent = async (
   event: ReturnType<typeof parseMessageCreatedEvent>
 ): Promise<"processed" | "duplicate"> => {
   const client = await postgresPool.connect();
+
   try {
     await client.query("BEGIN");
 
@@ -33,6 +34,9 @@ export const processMessageCreatedEvent = async (
 
     if (processedResult.rowCount === 0) {
       await client.query("ROLLBACK");
+      incrementCounter("kafka_duplicate_events_total", {
+        event_type: event.eventType,
+      });
       return "duplicate";
     }
 
@@ -46,8 +50,14 @@ export const processMessageCreatedEvent = async (
     );
 
     await client.query("COMMIT");
+    incrementCounter("kafka_consume_total", {
+      event_type: event.eventType,
+    });
     return "processed";
   } catch (error) {
+    incrementCounter("kafka_consume_failures_total", {
+      event_type: event.eventType,
+    });
     await client.query("ROLLBACK");
     throw error;
   } finally {
@@ -57,18 +67,29 @@ export const processMessageCreatedEvent = async (
 
 const publishToDlq = async (rawValue: string): Promise<void> => {
   const producer = getKafkaProducer();
+
   if (!producer) {
-    logger.error("kafka_dlq_publish_failed", { reason: "producer_unavailable" });
+    incrementCounter("kafka_dlq_publish_failures_total");
+    logger.error("kafka_dlq_publish_failed", {
+      reason: "producer_unavailable",
+    });
     throw new Error("Kafka producer is unavailable for DLQ publication");
   }
 
-  await producer.send({
-    topic: MESSAGE_CREATED_DLQ_TOPIC,
-    messages: [{ value: rawValue }],
-  });
+  try {
+    await producer.send({
+      topic: MESSAGE_CREATED_DLQ_TOPIC,
+      messages: [{ value: rawValue }],
+    });
+  } catch (error) {
+    incrementCounter("kafka_dlq_publish_failures_total");
+    throw error;
+  }
 };
 
-export const startMessageNotificationConsumer = async (consumer: Consumer): Promise<void> => {
+export const startMessageNotificationConsumer = async (
+  consumer: Consumer
+): Promise<void> => {
   await consumer.subscribe({
     topic: MESSAGE_CREATED_TOPIC,
     fromBeginning: config.kafka.notificationConsumerFromBeginning,
@@ -80,22 +101,33 @@ export const startMessageNotificationConsumer = async (consumer: Consumer): Prom
       removeListener();
       resolve();
     });
+
     const timeout = setTimeout(() => {
       removeListener();
       reject(new Error("Kafka consumer group join timed out"));
     }, 10_000);
+
     void timeout.unref?.();
   });
 
   await consumer.run({
     eachMessage: async ({ topic, partition, message }) => {
       const rawValue = message.value?.toString("utf8");
+
       if (!rawValue) {
-        logger.error("kafka_event_invalid", { topic, partition, reason: "empty_value" });
+        logger.error("kafka_event_invalid", {
+          topic,
+          partition,
+          reason: "empty_value",
+        });
+        incrementCounter("kafka_consume_failures_total", {
+          event_type: "invalid",
+        });
         return;
       }
 
       let event: ReturnType<typeof parseMessageCreatedEvent>;
+
       try {
         event = parseMessageCreatedEvent(JSON.parse(rawValue) as unknown);
       } catch (error: unknown) {
@@ -104,14 +136,20 @@ export const startMessageNotificationConsumer = async (consumer: Consumer): Prom
           partition,
           errorName: error instanceof Error ? error.name : "UnknownError",
         });
+        incrementCounter("kafka_consume_failures_total", {
+          event_type: "invalid",
+        });
         await publishToDlq(rawValue);
         return;
       }
 
       try {
         const result = await processMessageCreatedEvent(event);
+
         logger.info(
-          result === "duplicate" ? "kafka_event_duplicate_ignored" : "kafka_event_processed",
+          result === "duplicate"
+            ? "kafka_event_duplicate_ignored"
+            : "kafka_event_processed",
           {
             eventId: event.eventId,
             eventType: event.eventType,
@@ -140,10 +178,10 @@ export const startMessageNotificationConsumer = async (consumer: Consumer): Prom
 
 export const stopMessageNotificationConsumer = async (): Promise<void> => {
   if (!runningConsumer) return;
+
   try {
     await runningConsumer.stop();
-  } catch {
-    // best-effort shutdown
+  } finally {
+    runningConsumer = null;
   }
-  runningConsumer = null;
 };

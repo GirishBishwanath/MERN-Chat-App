@@ -1,6 +1,8 @@
 import { Pool, type PoolConfig } from "pg";
 
 import { config } from "../config/env.js";
+import { incrementCounter, observeHistogram } from "../observability/metrics.js";
+import { logger } from "../utils/logger.js";
 
 const poolConfig: PoolConfig = {
   host: config.postgres.host,
@@ -18,19 +20,31 @@ const poolConfig: PoolConfig = {
 export const postgresPool = new Pool(poolConfig);
 
 postgresPool.on("error", (error) => {
-  // Pool errors can happen on idle connections without an active request.
-  // Keep the process alive and let the next query surface availability failures.
-  console.error("postgres_pool_error", {
+  incrementCounter("db_operation_errors_total", { operation: "pool" });
+  logger.error("postgres_pool_error", {
     errorName: error.name,
   });
 });
 
 export const verifyPostgresConnection = async (): Promise<void> => {
-  const client = await postgresPool.connect();
+  const startedAt = process.hrtime.bigint();
+
   try {
-    await client.query("SELECT 1");
-  } finally {
-    client.release();
+    const client = await postgresPool.connect();
+    try {
+      await client.query("SELECT 1");
+    } finally {
+      client.release();
+    }
+
+    observeHistogram(
+      "db_operation_duration_seconds",
+      Number(process.hrtime.bigint() - startedAt) / 1e9,
+      { operation: "healthcheck" }
+    );
+  } catch (error) {
+    incrementCounter("db_operation_errors_total", { operation: "healthcheck" });
+    throw error;
   }
 };
 
