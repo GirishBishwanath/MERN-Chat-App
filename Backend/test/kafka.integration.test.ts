@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import { createMessageCreatedEvent } from "../events/contracts.js";
-import { eventPublisher } from "../events/publisher.js";
+import { insertOutboxEvent } from "../repositories/postgres/outbox.repository.js";
+import { MESSAGE_CREATED_TOPIC } from "../events/contracts.js";
 import { closeKafkaInfrastructure, getKafkaProducer, initializeKafkaInfrastructure } from "../infra/kafka/client.js";
 import { postgresPool } from "../db/pool.js";
 import { runMigrations } from "../db/migrate.js";
@@ -55,7 +56,7 @@ before(async () => {
 after(async () => {
   await closeKafkaInfrastructure();
   await postgresPool.query(
-    "TRUNCATE notifications, messages, conversation_members, conversations, users CASCADE"
+    "TRUNCATE processed_events, outbox_events, notifications, messages, conversation_members, conversations, users CASCADE"
   );
   await postgresPool.end();
 });
@@ -66,11 +67,26 @@ test("publishes message.created and processes it into one notification", async (
     conversationId,
     senderId,
     recipientId,
-    createdAt: new Date().toISOString(),
+    createdAt: messageId ? new Date().toISOString() : new Date().toISOString(),
     correlationId: "kafka-integration-test",
   });
 
-  await eventPublisher.publishMessageCreated(event);
+  const client = await postgresPool.connect();
+  try {
+    await client.query("BEGIN");
+    await insertOutboxEvent(client, {
+      event,
+      aggregateType: "conversation",
+      topic: MESSAGE_CREATED_TOPIC,
+      partitionKey: conversationId,
+    });
+    await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
 
   await waitFor(async () => (await countNotificationsForMessage(recipientId, messageId)) === 1);
 
