@@ -1,9 +1,17 @@
 import { Kafka, logLevel, type Consumer, type Producer } from "kafkajs";
+
 import { config } from "../../config/env.js";
 import { logger } from "../../utils/logger.js";
-import { startMessageNotificationConsumer, stopMessageNotificationConsumer } from "../../events/message-notification.consumer.js";
+import { incrementCounter } from "../../observability/metrics.js";
+import {
+  startMessageNotificationConsumer,
+  stopMessageNotificationConsumer,
+} from "../../events/message-notification.consumer.js";
 import { startOutboxRelay, stopOutboxRelay } from "../../events/publisher.js";
-import { MESSAGE_CREATED_DLQ_TOPIC, MESSAGE_CREATED_TOPIC } from "../../events/contracts.js";
+import {
+  MESSAGE_CREATED_DLQ_TOPIC,
+  MESSAGE_CREATED_TOPIC,
+} from "../../events/contracts.js";
 
 const kafka = new Kafka({
   clientId: config.kafka.clientId,
@@ -15,6 +23,7 @@ const producer = kafka.producer({
   idempotent: true,
   maxInFlightRequests: 5,
 });
+
 const consumer: Consumer = kafka.consumer({
   groupId: config.kafka.notificationConsumerGroup,
   allowAutoTopicCreation: false,
@@ -23,7 +32,20 @@ const consumer: Consumer = kafka.consumer({
 let producerConnected = false;
 let consumerConnected = false;
 
-export const getKafkaProducer = (): Producer | null => producerConnected ? producer : null;
+export const getKafkaProducer = (): Producer | null =>
+  producerConnected ? producer : null;
+
+export const getKafkaHealthSnapshot = (): {
+  enabled: boolean;
+  connected: boolean;
+  producerConnected: boolean;
+  consumerConnected: boolean;
+} => ({
+  enabled: config.kafka.enabled,
+  connected: !config.kafka.enabled || (producerConnected && consumerConnected),
+  producerConnected,
+  consumerConnected,
+});
 
 export const initializeKafkaInfrastructure = async (): Promise<boolean> => {
   if (!config.kafka.enabled) {
@@ -34,6 +56,7 @@ export const initializeKafkaInfrastructure = async (): Promise<boolean> => {
   try {
     const admin = kafka.admin();
     await admin.connect();
+
     try {
       await admin.createTopics({
         waitForLeaders: true,
@@ -63,14 +86,17 @@ export const initializeKafkaInfrastructure = async (): Promise<boolean> => {
       },
       config.outbox.pollIntervalMs
     );
+
     logger.info("kafka_infrastructure_initialized", {
-      brokers: config.kafka.brokers,
+      brokerCount: config.kafka.brokers.length,
       notificationConsumerGroup: config.kafka.notificationConsumerGroup,
     });
+
     return true;
   } catch (error: unknown) {
     producerConnected = false;
     consumerConnected = false;
+    incrementCounter("kafka_initialization_failures_total");
     logger.warn("kafka_initialization_failed", {
       errorName: error instanceof Error ? error.name : "UnknownError",
     });
@@ -82,12 +108,23 @@ export const initializeKafkaInfrastructure = async (): Promise<boolean> => {
 export const closeKafkaInfrastructure = async (): Promise<void> => {
   stopOutboxRelay();
   await stopMessageNotificationConsumer();
+
   if (consumerConnected) {
-    try { await consumer.disconnect(); } catch { /* best-effort shutdown */ }
+    try {
+      await consumer.disconnect();
+    } catch {
+      // best-effort shutdown
+    }
   }
+
   if (producerConnected) {
-    try { await producer.disconnect(); } catch { /* best-effort shutdown */ }
+    try {
+      await producer.disconnect();
+    } catch {
+      // best-effort shutdown
+    }
   }
+
   consumerConnected = false;
   producerConnected = false;
 };
