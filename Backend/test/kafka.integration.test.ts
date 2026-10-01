@@ -1,8 +1,7 @@
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
-import { createMessageCreatedEvent } from "../events/contracts.js";
+import { createMessageCreatedEvent, MESSAGE_CREATED_TOPIC } from "../events/contracts.js";
 import { insertOutboxEvent } from "../repositories/postgres/outbox.repository.js";
-import { MESSAGE_CREATED_TOPIC } from "../events/contracts.js";
 import { closeKafkaInfrastructure, getKafkaProducer, initializeKafkaInfrastructure } from "../infra/kafka/client.js";
 import { postgresPool } from "../db/pool.js";
 import { runMigrations } from "../db/migrate.js";
@@ -15,6 +14,7 @@ let senderId: string;
 let recipientId: string;
 let messageId: string;
 let conversationId: string;
+let messageCreatedAt: Date;
 
 const waitFor = async (predicate: () => Promise<boolean>, timeoutMs = 5000): Promise<void> => {
   const startedAt = Date.now();
@@ -48,6 +48,7 @@ before(async () => {
     content: "Kafka integration test message",
   });
   messageId = message.id;
+  messageCreatedAt = message.createdAt;
 
   const connected = await initializeKafkaInfrastructure();
   assert.equal(connected, true);
@@ -67,7 +68,7 @@ test("publishes message.created and processes it into one notification", async (
     conversationId,
     senderId,
     recipientId,
-    createdAt: messageId ? new Date().toISOString() : new Date().toISOString(),
+    createdAt: messageCreatedAt.toISOString(),
     correlationId: "kafka-integration-test",
   });
 
