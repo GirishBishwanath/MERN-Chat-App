@@ -1,5 +1,6 @@
 CREATE TABLE outbox_events (
     id UUID PRIMARY KEY,
+    sequence_number BIGINT GENERATED ALWAYS AS IDENTITY UNIQUE,
     aggregate_type VARCHAR(100) NOT NULL,
     aggregate_id UUID NOT NULL,
     event_type VARCHAR(150) NOT NULL,
@@ -33,7 +34,7 @@ CREATE INDEX outbox_pending_claim_idx
     WHERE status IN ('pending', 'processing');
 
 CREATE INDEX outbox_aggregate_order_idx
-    ON outbox_events (aggregate_id, created_at, id);
+    ON outbox_events (aggregate_id, sequence_number);
 
 CREATE INDEX outbox_status_created_idx
     ON outbox_events (status, created_at, id);
