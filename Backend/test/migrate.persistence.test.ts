@@ -30,7 +30,7 @@ const migrationPool = new Pool({
 
 const ensureCleanDatabase = async (): Promise<void> => {
   await migrationPool.query(
-    "DROP TABLE IF EXISTS notifications, sessions, messages, conversation_members, conversations, users CASCADE"
+    "DROP TABLE IF EXISTS processed_events, outbox_events, notifications, sessions, messages, conversation_members, conversations, users CASCADE"
   );
   await migrationPool.query("DROP TABLE IF EXISTS schema_migrations");
 };
@@ -58,6 +58,7 @@ test("migration runner is idempotent", async () => {
   assert.deepEqual(firstResult.rows, [
     { version: "001_initial_schema" },
     { version: "002_notifications" },
+    { version: "003_outbox" },
   ]);
 });
 
