@@ -1,0 +1,4 @@
+import assert from "node:assert/strict"; import test,{beforeEach}from"node:test"; import{incrementCounter,observeHistogram,renderMetrics,renderOutboxGauges,resetMetrics,setOutboxGaugeSnapshot,metricsContentType}from"./metrics.js";
+beforeEach(()=>resetMetrics());
+test("renders bounded metrics",()=>{incrementCounter("http_requests_total",{method:"GET",route:"/health/live",status:"200"},2);observeHistogram("http_request_duration_seconds",.02,{method:"GET",route:"/health/live",status:"200"});const o=renderMetrics();assert.match(o,/http_requests_total.*2/);assert.match(o,/http_request_duration_seconds_bucket.*0.025.*1/);assert.equal(metricsContentType,"text/plain; version=0.0.4; charset=utf-8");});
+test("renders outbox gauges without ids",()=>{setOutboxGaugeSnapshot(4,2,12.5);const o=renderOutboxGauges();assert.match(o,/outbox_pending_events 4/);assert.doesNotMatch(o,/eventId|userId|messageId/);});
