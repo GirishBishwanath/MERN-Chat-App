@@ -80,7 +80,7 @@ export const insertOutboxEvent = async <TEventType extends string, TData>(
     [
       input.event.eventId,
       input.aggregateType,
-      input.event.aggregateId,
+      input.partitionKey,
       input.event.eventType,
       input.event.version,
       input.topic,
