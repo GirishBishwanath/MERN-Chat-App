@@ -14,6 +14,7 @@ export interface OutboxInsertInput<TEventType extends string, TData> {
 
 export interface OutboxEvent {
   id: string;
+  sequenceNumber: number;
   aggregateType: string;
   aggregateId: string;
   eventType: string;
@@ -32,6 +33,7 @@ export interface OutboxEvent {
 
 const mapOutboxEvent = (row: Record<string, unknown>): OutboxEvent => ({
   id: String(row.id),
+  sequenceNumber: Number(row.sequence_number),
   aggregateType: String(row.aggregate_type),
   aggregateId: String(row.aggregate_id),
   eventType: String(row.event_type),
@@ -123,13 +125,13 @@ export const claimPendingOutboxEvents = async (
           FROM outbox_events AS earlier
           WHERE earlier.aggregate_id = candidate.aggregate_id
             AND (
-              earlier.created_at, earlier.id
+              earlier.sequence_number
             ) < (
-              candidate.created_at, candidate.id
+              candidate.sequence_number
             )
             AND earlier.status IN ('pending', 'processing')
         )
-        ORDER BY candidate.created_at ASC, candidate.id ASC
+        ORDER BY candidate.sequence_number ASC
         FOR UPDATE SKIP LOCKED
         LIMIT $1
       )
@@ -143,6 +145,7 @@ export const claimPendingOutboxEvents = async (
       WHERE claimed.id = candidates.id
       RETURNING
         claimed.id,
+        claimed.sequence_number,
         claimed.aggregate_type,
         claimed.aggregate_id,
         claimed.event_type,
