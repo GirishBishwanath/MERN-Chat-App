@@ -1,28 +1,65 @@
 import type { Consumer } from "kafkajs";
-import { MESSAGE_CREATED_DLQ_TOPIC, MESSAGE_CREATED_TOPIC, parseMessageCreatedEvent } from "./contracts.js";
+
+import {
+  MESSAGE_CREATED_DLQ_TOPIC,
+  MESSAGE_CREATED_TOPIC,
+  parseMessageCreatedEvent,
+} from "./contracts.js";
 import { postgresPool } from "../db/pool.js";
 import { logger } from "../utils/logger.js";
 import { getKafkaProducer } from "../infra/kafka/client.js";
 import { config } from "../config/env.js";
 
+const CONSUMER_NAME = config.kafka.notificationConsumerGroup;
+
 let runningConsumer: Consumer | null = null;
 
-const createNotification = async (event: ReturnType<typeof parseMessageCreatedEvent>): Promise<void> => {
-  await postgresPool.query(
-    `
-      INSERT INTO notifications (id, recipient_id, message_id, type)
-      VALUES (gen_random_uuid(), $1, $2, 'message')
-      ON CONFLICT (recipient_id, message_id, type) DO NOTHING
-    `,
-    [event.data.recipientId, event.data.messageId]
-  );
+const createNotification = async (
+  event: ReturnType<typeof parseMessageCreatedEvent>
+): Promise<"processed" | "duplicate"> => {
+  const client = await postgresPool.connect();
+  try {
+    await client.query("BEGIN");
+
+    const processedResult = await client.query(
+      `
+        INSERT INTO processed_events (consumer_name, event_id)
+        VALUES ($1, $2)
+        ON CONFLICT (consumer_name, event_id) DO NOTHING
+        RETURNING event_id
+      `,
+      [CONSUMER_NAME, event.eventId]
+    );
+
+    if (processedResult.rowCount === 0) {
+      await client.query("ROLLBACK");
+      return "duplicate";
+    }
+
+    await client.query(
+      `
+        INSERT INTO notifications (id, recipient_id, message_id, type)
+        VALUES (gen_random_uuid(), $1, $2, 'message')
+        ON CONFLICT (recipient_id, message_id, type) DO NOTHING
+      `,
+      [event.data.recipientId, event.data.messageId]
+    );
+
+    await client.query("COMMIT");
+    return "processed";
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
 };
 
 const publishToDlq = async (rawValue: string): Promise<void> => {
   const producer = getKafkaProducer();
   if (!producer) {
     logger.error("kafka_dlq_publish_failed", { reason: "producer_unavailable" });
-    return;
+    throw new Error("Kafka producer is unavailable for DLQ publication");
   }
 
   await producer.send({
@@ -72,15 +109,18 @@ export const startMessageNotificationConsumer = async (consumer: Consumer): Prom
       }
 
       try {
-        await createNotification(event);
-        logger.info("kafka_event_processed", {
-          eventId: event.eventId,
-          eventType: event.eventType,
-          topic,
-          partition,
-          consumerGroup: config.kafka.notificationConsumerGroup,
-          correlationId: event.correlationId,
-        });
+        const result = await createNotification(event);
+        logger.info(
+          result === "duplicate" ? "kafka_event_duplicate_ignored" : "kafka_event_processed",
+          {
+            eventId: event.eventId,
+            eventType: event.eventType,
+            topic,
+            partition,
+            consumerGroup: CONSUMER_NAME,
+            correlationId: event.correlationId,
+          }
+        );
       } catch (error: unknown) {
         logger.error("kafka_event_processing_failed", {
           eventId: event.eventId,
@@ -94,11 +134,16 @@ export const startMessageNotificationConsumer = async (consumer: Consumer): Prom
       }
     },
   });
+
   await groupJoin;
 };
 
 export const stopMessageNotificationConsumer = async (): Promise<void> => {
   if (!runningConsumer) return;
-  try { await runningConsumer.stop(); } catch { /* best-effort shutdown */ }
+  try {
+    await runningConsumer.stop();
+  } catch {
+    // best-effort shutdown
+  }
   runningConsumer = null;
 };
