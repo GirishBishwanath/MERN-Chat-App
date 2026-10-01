@@ -98,7 +98,11 @@ test("message creation commits the message and outbox event atomically", async (
   );
 
   assert.equal(rows.rowCount, 1);
-  assert.equal(rows.rows[0].aggregate_id, result.message._id);
+  const conversation = await postgresPool.query(
+    "SELECT conversation_id FROM messages WHERE id = $1",
+    [result.message._id]
+  );
+  assert.equal(rows.rows[0].aggregate_id, conversation.rows[0].conversation_id);
   assert.equal(rows.rows[0].topic, MESSAGE_CREATED_TOPIC);
   assert.equal(rows.rows[0].status, "pending");
   assert.equal(rows.rows[0].payload.data.messageId, result.message._id);
