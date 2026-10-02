@@ -1,0 +1,75 @@
+# Performance and Load Testing
+
+This directory contains reproducible local performance tests for the chat application.
+
+## Tool
+
+Phase 18 uses Grafana k6 because the repository needs both HTTP and WebSocket workload generation with built-in latency, throughput, checks, thresholds, and summary output. Simpler alternatives considered were autocannon and a custom Node.js benchmark; neither provides as clean a single test model for the authenticated HTTP + Socket.IO workload required here. k6 is an external load generator, so it does not add runtime infrastructure to the application.
+
+k6 is intentionally not added to the Node.js dependency graph. Install k6 on the developer/benchmark machine.
+
+## Environment
+
+Tests target a local Docker Compose runtime only. Never point these scripts at production or a database containing real user data.
+
+Expected local API URL: http://localhost:4002.
+
+The benchmark dataset is synthetic. Credentials are supplied through environment variables or deterministic values; no secrets are stored in source control.
+
+## Scenarios
+
+- auth.js: authenticated login and /api/user/me.
+- message-retrieval.js: cursor-paginated message reads across a seeded conversation.
+- message-send.js: synchronous message + outbox transaction path.
+- realtime.js: authenticated Socket.IO connection lifecycle.
+- mixed-chat.js: mixed authenticated reads, sends, and identity checks.
+
+## Dataset
+
+The seed command creates synthetic users, a direct conversation, and configurable message history in the local PostgreSQL database. It uses the repository runtime to generate the bcrypt hash so password hashing is not faked.
+
+Run from the repository root:
+
+```bash
+docker compose up -d
+docker compose run --rm backend npm run db:migrate
+node load-tests/scripts/seed.mjs
+```
+
+The seed command prints the benchmark user IDs and receiver ID. Keep that output local.
+
+## Running
+
+Install k6 separately, then run:
+
+```bash
+k6 run load-tests/scenarios/auth.js
+k6 run load-tests/scenarios/message-retrieval.js
+k6 run load-tests/scenarios/message-send.js
+k6 run load-tests/scenarios/realtime.js
+k6 run load-tests/scenarios/mixed-chat.js
+```
+
+Set the seeded receiver explicitly:
+
+```bash
+K6_RECEIVER_ID=<synthetic-receiver-uuid> k6 run load-tests/scenarios/message-retrieval.js
+```
+
+Profiles are controlled with K6_PROFILE=smoke|ci.
+
+## Thresholds
+
+Thresholds are benchmark acceptance thresholds, not production SLOs. They catch severe regressions in repeatable local runs. They do not establish production capacity.
+
+## Results
+
+Generated summaries belong under load-tests/results/ locally. Results are ignored by Git and must not contain credentials or production data.
+
+## Methodology
+
+For before/after comparison keep the same dataset, environment, k6 version, VU/rate stages, warm-up, duration, and measurement method. Record p50/p95/p99, throughput, error rate, concurrency, and relevant dependency observations. Correlate with the application's existing /metrics output and logs.
+
+## Limitations
+
+These are local benchmarks. They do not establish production capacity, cloud limits, Internet-facing network performance, or multi-region behavior.
