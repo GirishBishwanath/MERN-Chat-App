@@ -53,7 +53,7 @@ K6_RECEIVER_ID=<synthetic-receiver-uuid> k6 run load-tests/scenarios/mixed-chat.
 k6 run load-tests/scenarios/auth.js
 ```
 
-Realtime additionally requires a session cookie produced from the synthetic account. Do not paste or commit that cookie. It should only be supplied transiently through `K6_COOKIE` for the local benchmark.
+Realtime performs its own one-time login during k6 `setup()` and reuses the resulting cookie for the scenario. No manual `K6_COOKIE` value is required.
 
 ## Measurements to record
 
