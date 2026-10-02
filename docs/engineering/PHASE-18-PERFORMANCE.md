@@ -2,7 +2,7 @@
 
 ## Status
 
-Implementation is in progress on `feat/performance-load-testing`.
+The benchmark harness and reproducible synthetic dataset tooling are implemented on `feat/performance-load-testing`. Baseline execution remains pending on a machine with Docker Compose and k6.
 
 The repository currently contains a local k6 harness and synthetic PostgreSQL seed tooling. No production endpoint, credential, database, Kafka broker, or Redis instance is used by the test suite by design.
 
@@ -22,7 +22,7 @@ The workload scripts use real authentication cookies instead of bypassing the se
 
 ## Synthetic dataset
 
-`load-tests/scripts/seed.mjs` creates two synthetic users, a direct conversation, membership rows, and configurable message history. Password hashes are generated with the repository bcrypt implementation inside the local Docker backend container.
+`load-tests/scripts/seed.mjs` creates two synthetic users, a direct conversation, membership rows, and configurable message history. Re-running the seed removes prior benchmark conversation outbox events before recreating the synthetic dataset. Password hashes are generated with the repository bcrypt implementation inside the local Docker backend container.
 
 Default dataset size is 500 messages and can be changed with `K6_MESSAGE_COUNT` up to 10,000.
 
