@@ -25,6 +25,17 @@ const hash = execFileSync(
 ).trim();
 
 const sql = `
+CREATE TEMP TABLE phase18_old_conversations (id UUID PRIMARY KEY);
+
+INSERT INTO phase18_old_conversations (id)
+SELECT id
+FROM conversations
+WHERE member_a_id IN (SELECT id FROM users WHERE email IN ('${escape(email)}', '${escape(receiverEmail)}'))
+   OR member_b_id IN (SELECT id FROM users WHERE email IN ('${escape(email)}', '${escape(receiverEmail)}'));
+
+DELETE FROM outbox_events
+WHERE aggregate_id IN (SELECT id FROM phase18_old_conversations);
+
 DELETE FROM users
 WHERE email IN ('${escape(email)}', '${escape(receiverEmail)}');
 
@@ -81,7 +92,15 @@ CROSS JOIN generate_series(1, ${messageCount}) AS n;
 
 SELECT
   (SELECT id FROM users WHERE email = '${escape(email)}') || '|' ||
-  (SELECT id FROM users WHERE email = '${escape(receiverEmail)}');
+  (SELECT id FROM users WHERE email = '${escape(receiverEmail)}') || '|' ||
+  (SELECT c.id
+   FROM conversations c
+   JOIN users a ON a.id = c.member_a_id
+   JOIN users b ON b.id = c.member_b_id
+   WHERE a.email = '${escape(email)}'
+     AND b.email = '${escape(receiverEmail)}'
+      OR a.email = '${escape(receiverEmail)}'
+     AND b.email = '${escape(email)}');
 `;
 
 const output = execFileSync(
@@ -97,17 +116,17 @@ const output = execFileSync(
 const pair = output
   .split(/\r?\n/)
   .map((line) => line.trim())
-  .find((line) => /^[0-9a-f-]{36}\|[0-9a-f-]{36}$/.test(line));
+  .find((line) => /^[0-9a-f-]{36}\|[0-9a-f-]{36}\|[0-9a-f-]{36}$/.test(line));
 
 if (!pair) throw new Error("Could not recover seeded user IDs");
 
-const [seedUserId, seedReceiverId] = pair.split("|");
+const [seedUserId, seedReceiverId, conversationId] = pair.split("|");
 
 console.log(JSON.stringify({
   email,
   receiverEmail,
-  password,
   seedUserId,
   seedReceiverId,
+  conversationId,
   messageCount,
 }, null, 2));
