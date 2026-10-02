@@ -36,7 +36,7 @@ docker compose run --rm backend npm run db:migrate
 node load-tests/scripts/seed.mjs
 ```
 
-The seed command prints the benchmark user IDs and receiver ID. Keep that output local.
+The seed command prints the benchmark user IDs, receiver ID, and conversation ID. It does not print the benchmark password. Keep the identifiers local.
 
 ## Running
 
@@ -93,5 +93,7 @@ node load-tests/scripts/seed.mjs
 # Copy seedReceiverId from the seed output.
 K6_RECEIVER_ID=<seedReceiverId> K6_PROFILE=smoke k6 run --summary-export=load-tests/results/message-retrieval.json load-tests/scenarios/message-retrieval.js
 ```
+
+For query-plan diagnostics, replace the placeholders in `load-tests/scripts/explain-message-query.sql` with the `seedUserId`, `seedReceiverId`, and `conversationId` printed by the seed command, then run it against the local PostgreSQL container.
 
 For comparison runs, keep the same `K6_RECEIVER_ID`, dataset size, Docker configuration, k6 version, profile, and machine.
