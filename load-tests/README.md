@@ -73,3 +73,25 @@ For before/after comparison keep the same dataset, environment, k6 version, VU/r
 ## Limitations
 
 These are local benchmarks. They do not establish production capacity, cloud limits, Internet-facing network performance, or multi-region behavior.
+
+
+## Authentication-rate-limit note
+
+The application intentionally limits login attempts to 5 per synthetic email per 15-minute window. The authenticated workload scenarios therefore perform exactly one login during k6 `setup()` and reuse that synthetic session; they do not call `/login` on every iteration.
+
+Run one benchmark scenario at a time with the seeded synthetic account. If the credential limiter has already been consumed, wait for its window to expire or seed/use another `phase18-benchmark-*@example.com` account. Do not disable or bypass the application rate limiter for performance testing.
+
+The `auth.js` workload intentionally uses at most 5 concurrent one-shot login attempts in the `ci` profile so it remains inside the configured security limit.
+
+## Reproducible run example
+
+```bash
+docker compose up -d
+docker compose run --rm backend npm run db:migrate
+node load-tests/scripts/seed.mjs
+
+# Copy seedReceiverId from the seed output.
+K6_RECEIVER_ID=<seedReceiverId> K6_PROFILE=smoke k6 run --summary-export=load-tests/results/message-retrieval.json load-tests/scenarios/message-retrieval.js
+```
+
+For comparison runs, keep the same `K6_RECEIVER_ID`, dataset size, Docker configuration, k6 version, profile, and machine.
