@@ -1,5 +1,5 @@
 -- Run against the local synthetic Phase 18 dataset.
--- Replace <conversation-uuid> with the conversation containing the benchmark messages.
+-- Replace the placeholders with the IDs printed by load-tests/scripts/seed.mjs.
 -- This is diagnostic only; it does not modify data.
 
 EXPLAIN (ANALYZE, BUFFERS, VERBOSE)
