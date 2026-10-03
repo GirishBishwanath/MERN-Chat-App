@@ -47,8 +47,8 @@ VALUES (gen_random_uuid(), 'Phase 18 Bob', '${escape(receiverEmail)}', '${escape
 
 WITH selected AS (
   SELECT
-    MIN(id) FILTER (WHERE email = '${escape(email)}') AS alice_id,
-    MIN(id) FILTER (WHERE email = '${escape(receiverEmail)}') AS bob_id
+    (ARRAY_AGG(id ORDER BY id) FILTER (WHERE email = '${escape(email)}'))[1] AS alice_id,
+    (ARRAY_AGG(id ORDER BY id) FILTER (WHERE email = '${escape(receiverEmail)}'))[1] AS bob_id
   FROM users
   WHERE email IN ('${escape(email)}', '${escape(receiverEmail)}')
 ),
@@ -67,8 +67,8 @@ FROM conversation CROSS JOIN selected;
 
 WITH selected AS (
   SELECT
-    MIN(id) FILTER (WHERE email = '${escape(email)}') AS alice_id,
-    MIN(id) FILTER (WHERE email = '${escape(receiverEmail)}') AS bob_id
+    (ARRAY_AGG(id ORDER BY id) FILTER (WHERE email = '${escape(email)}'))[1] AS alice_id,
+    (ARRAY_AGG(id ORDER BY id) FILTER (WHERE email = '${escape(receiverEmail)}'))[1] AS bob_id
   FROM users
   WHERE email IN ('${escape(email)}', '${escape(receiverEmail)}')
 ),
