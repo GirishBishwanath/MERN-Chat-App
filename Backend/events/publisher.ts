@@ -25,7 +25,7 @@ export interface OutboxRelayOptions {
 }
 
 const DEFAULT_OPTIONS: Required<OutboxRelayOptions> = {
-  batchSize: 20,
+  batchSize: 100,
   leaseMs: 30_000,
   maxAttempts: 8,
   baseBackoffMs: 1_000,
@@ -91,17 +91,29 @@ export const runOutboxRelayOnce = async (
   options: OutboxRelayOptions = {}
 ): Promise<number> => {
   const settings = { ...DEFAULT_OPTIONS, ...options };
+  const claimStartedAt = process.hrtime.bigint();
   const events = await claimPendingOutboxEvents(
     pool,
     settings.batchSize,
     settings.leaseMs
   );
+  observeHistogram(
+    "outbox_claim_duration_seconds",
+    Number(process.hrtime.bigint() - claimStartedAt) / 1e9
+  );
+  observeHistogram("outbox_relay_batch_size", events.length);
+  incrementCounter("outbox_relay_batches_total");
 
   try {
     await publishOutboxEvents(producer, events);
 
     if (events.length > 0) {
+      const markStartedAt = process.hrtime.bigint();
       await markOutboxEventsPublished(pool, events.map((event) => event.id));
+      observeHistogram(
+        "outbox_mark_published_duration_seconds",
+        Number(process.hrtime.bigint() - markStartedAt) / 1e9
+      );
 
       events.forEach((event) => {
         incrementCounter("outbox_published_total", {
