@@ -67,17 +67,7 @@ export const insertOutboxEvent = async <TEventType extends string, TData>(
         payload,
         headers
       )
-      VALUES (
-        $1,
-        $2,
-        $3,
-        $4,
-        $5,
-        $6,
-        $7,
-        $8::jsonb,
-        $9::jsonb
-      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9::jsonb)
     `,
     [
       input.event.eventId,
@@ -112,23 +102,15 @@ export const claimPendingOutboxEvents = async (
         SELECT candidate.id
         FROM outbox_events AS candidate
         WHERE (
-          (
-            candidate.status = 'pending'
-            AND candidate.available_at <= NOW()
-          ) OR (
-            candidate.status = 'processing'
-            AND candidate.locked_until <= NOW()
-          )
+          (candidate.status = 'pending' AND candidate.available_at <= NOW())
+          OR
+          (candidate.status = 'processing' AND candidate.locked_until <= NOW())
         )
         AND NOT EXISTS (
           SELECT 1
           FROM outbox_events AS earlier
           WHERE earlier.aggregate_id = candidate.aggregate_id
-            AND (
-              earlier.sequence_number
-            ) < (
-              candidate.sequence_number
-            )
+            AND earlier.sequence_number < candidate.sequence_number
             AND earlier.status IN ('pending', 'processing')
         )
         ORDER BY candidate.sequence_number ASC
@@ -167,10 +149,12 @@ export const claimPendingOutboxEvents = async (
   return result.rows.map((row: Record<string, unknown>) => mapOutboxEvent(row));
 };
 
-export const markOutboxEventPublished = async (
+export const markOutboxEventsPublished = async (
   pool: Pool = postgresPool,
-  eventId: string
+  eventIds: string[]
 ): Promise<void> => {
+  if (eventIds.length === 0) return;
+
   await pool.query(
     `
       UPDATE outbox_events
@@ -178,11 +162,18 @@ export const markOutboxEventPublished = async (
           published_at = NOW(),
           locked_until = NULL,
           last_error = NULL
-      WHERE id = $1
+      WHERE id = ANY($1::uuid[])
         AND status = 'processing'
     `,
-    [eventId]
+    [eventIds]
   );
+};
+
+export const markOutboxEventPublished = async (
+  pool: Pool = postgresPool,
+  eventId: string
+): Promise<void> => {
+  await markOutboxEventsPublished(pool, [eventId]);
 };
 
 export const rescheduleOutboxEvent = async (
@@ -223,7 +214,6 @@ export const deadLetterOutboxEvent = async (
   );
 };
 
-
 export const getOutboxOperationalSnapshot = async (
   pool: Pool = postgresPool
 ): Promise<{
@@ -237,11 +227,9 @@ export const getOutboxOperationalSnapshot = async (
         COUNT(*) FILTER (WHERE status = 'pending')::bigint AS pending,
         COUNT(*) FILTER (WHERE status = 'processing')::bigint AS processing,
         COALESCE(
-          EXTRACT(
-            EPOCH FROM (
-              NOW() - MIN(created_at) FILTER (WHERE status = 'pending')
-            )
-          ),
+          EXTRACT(EPOCH FROM (
+            NOW() - MIN(created_at) FILTER (WHERE status = 'pending')
+          )),
           0
         ) AS oldest_pending_age_seconds
       FROM outbox_events
