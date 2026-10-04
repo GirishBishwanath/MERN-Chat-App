@@ -25,19 +25,36 @@ const hash = execFileSync(
 ).trim();
 
 const sql = `
-CREATE TEMP TABLE phase18_old_conversations (id UUID PRIMARY KEY);
+BEGIN;
+
+CREATE TEMP TABLE phase18_old_users (
+  id UUID PRIMARY KEY
+);
+
+CREATE TEMP TABLE phase18_old_conversations (
+  id UUID PRIMARY KEY
+);
+
+INSERT INTO phase18_old_users (id)
+SELECT id
+FROM users
+WHERE email IN ('${escape(email)}', '${escape(receiverEmail)}');
 
 INSERT INTO phase18_old_conversations (id)
 SELECT id
 FROM conversations
-WHERE member_a_id IN (SELECT id FROM users WHERE email IN ('${escape(email)}', '${escape(receiverEmail)}'))
-   OR member_b_id IN (SELECT id FROM users WHERE email IN ('${escape(email)}', '${escape(receiverEmail)}'));
+WHERE member_a_id IN (SELECT id FROM phase18_old_users)
+   OR member_b_id IN (SELECT id FROM phase18_old_users);
 
 DELETE FROM outbox_events
 WHERE aggregate_id IN (SELECT id FROM phase18_old_conversations);
 
+DELETE FROM messages
+WHERE sender_id IN (SELECT id FROM phase18_old_users)
+   OR conversation_id IN (SELECT id FROM phase18_old_conversations);
+
 DELETE FROM users
-WHERE email IN ('${escape(email)}', '${escape(receiverEmail)}');
+WHERE id IN (SELECT id FROM phase18_old_users);
 
 INSERT INTO users (id, fullname, email, password_hash)
 VALUES (gen_random_uuid(), 'Phase 18 Alice', '${escape(email)}', '${escape(hash)}');
@@ -90,6 +107,8 @@ FROM conversation
 CROSS JOIN selected
 CROSS JOIN generate_series(1, ${messageCount}) AS n;
 
+COMMIT;
+
 SELECT
   (SELECT id FROM users WHERE email = '${escape(email)}') || '|' ||
   (SELECT id FROM users WHERE email = '${escape(receiverEmail)}') || '|' ||
@@ -97,10 +116,8 @@ SELECT
    FROM conversations c
    JOIN users a ON a.id = c.member_a_id
    JOIN users b ON b.id = c.member_b_id
-   WHERE a.email = '${escape(email)}'
-     AND b.email = '${escape(receiverEmail)}'
-      OR a.email = '${escape(receiverEmail)}'
-     AND b.email = '${escape(email)}');
+   WHERE (a.email = '${escape(email)}' AND b.email = '${escape(receiverEmail)}')
+      OR (a.email = '${escape(receiverEmail)}' AND b.email = '${escape(email)}'));
 `;
 
 const output = execFileSync(
