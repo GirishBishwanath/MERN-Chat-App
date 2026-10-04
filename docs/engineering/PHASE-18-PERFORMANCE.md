@@ -2,7 +2,7 @@
 
 ## Status
 
-**Implementation complete; local benchmark and evidence-driven optimization completed on `feat/performance-load-testing`.**
+**Implementation complete; final clean benchmark verification is still required before Phase 18 is closed.**
 
 The phase uses a reproducible local k6 harness, synthetic PostgreSQL data, PostgreSQL query-plan analysis, application metrics, and evidence-backed outbox optimizations. No production endpoint, credential, database, Kafka broker, or Redis instance is used by the load suite.
 
@@ -134,14 +134,15 @@ The change preserves the existing `FOR UPDATE SKIP LOCKED` claim semantics and p
 
 After the index, the remaining throughput limitation was identified in the relay implementation itself. The relay originally performed one Kafka `producer.send()` and one PostgreSQL status update per event, sequentially, with a 20-event batch and a 1-second polling interval.
 
-The relay was optimized to:
+The relay was optimized in two layers:
 - publish one Kafka batch per topic for the claimed events;
 - update successful outbox rows with one PostgreSQL set-based statement;
-- retain sequential claim ordering and bounded batch size;
-- retain at-least-once delivery semantics;
+- claim a contiguous, currently eligible prefix for one aggregate in a short transaction;
+- use the earliest eligible aggregate row as the coordination frontier with `FOR UPDATE SKIP LOCKED`;
+- retain per-aggregate ordering, bounded batch size, leases, and at-least-once delivery;
 - retry the whole claimed batch when Kafka publication fails.
 
-This reduces per-event network/database round trips without changing event ordering or correctness boundaries.
+The important second change addresses the measured hot-conversation bottleneck: batching at the Kafka layer alone was ineffective when the database claim layer returned only one unfinished event per aggregate. The new claim path can hand the relay a real ordered batch from one busy conversation while concurrent relay instances remain prevented from claiming later events from that same aggregate.
 
 ## Reliability boundaries
 
@@ -187,7 +188,7 @@ Phase 18 is complete when:
 6. the optimization is encoded as a migration/code change and preserves correctness;
 7. documentation records actual measurements and explicit interpretation limits.
 
-These criteria are satisfied on the current phase branch.
+The implementation and automated regression criteria are satisfied on the current phase branch. The final sustainability criterion remains intentionally evidence-based: the clean benchmark must show that the outbox backlog drains after traffic stops.
 
 ## Remaining verification
 
@@ -198,6 +199,14 @@ git clean -f Backend/db/migrations/004_outbox_pending_aggregate_order.sql
 git pull origin feat/performance-load-testing
 ```
 
-Then run the existing backend regression checks and one final message-send CI workload against the clean seeded environment. The final run is a verification of the optimized implementation, not a new exploratory benchmark.
+Then run the existing backend regression checks and one final message-send CI workload against a clean seeded environment. Immediately after the load run, record the outbox counters and then wait for the relay to drain the backlog.
 
-After that, Phase 18 can be closed and Phase 19 can begin unless the final verification uncovers a correctness regression.
+Phase 18 closes only when:
+- HTTP failures remain below the benchmark threshold;
+- message-send p95 remains below 1 second;
+- outbox retries and dead letters remain zero;
+- the pending backlog returns to zero after traffic stops;
+- oldest pending age returns to zero;
+- the drain is repeatable.
+
+If the backlog still grows, continue measuring the relay rather than moving to Phase 19.
