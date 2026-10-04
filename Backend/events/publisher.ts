@@ -6,7 +6,7 @@ import {
   calculateOutboxBackoffMs,
   claimPendingOutboxEvents,
   deadLetterOutboxEvent,
-  markOutboxEventPublished,
+  markOutboxEventsPublished,
   rescheduleOutboxEvent,
   type OutboxEvent,
 } from "../repositories/postgres/outbox.repository.js";
@@ -35,36 +35,51 @@ const DEFAULT_OPTIONS: Required<OutboxRelayOptions> = {
 const errorMessage = (error: unknown): string =>
   error instanceof Error ? error.message : "Unknown Kafka publication error";
 
-const publishOutboxEvent = async (
+const publishOutboxEvents = async (
   producer: Producer,
-  event: OutboxEvent
+  events: OutboxEvent[]
 ): Promise<void> => {
-  const startedAt = process.hrtime.bigint();
+  if (events.length === 0) return;
 
-  incrementCounter("kafka_publish_total", {
-    event_type: event.eventType,
-    topic: event.topic,
+  const startedAt = process.hrtime.bigint();
+  const topics = new Set(events.map((event) => event.topic));
+
+  events.forEach((event) => {
+    incrementCounter("kafka_publish_total", {
+      event_type: event.eventType,
+      topic: event.topic,
+    });
   });
 
   try {
-    await producer.send({
-      topic: event.topic,
-      messages: [{
-        key: event.partitionKey,
-        value: JSON.stringify(event.payload),
-        headers: event.headers,
-      }],
-    });
+    for (const topic of topics) {
+      const topicEvents = events.filter((event) => event.topic === topic);
+      await producer.send({
+        topic,
+        messages: topicEvents.map((event) => ({
+          key: event.partitionKey,
+          value: JSON.stringify(event.payload),
+          headers: event.headers,
+        })),
+      });
+    }
 
-    observeHistogram(
-      "outbox_publication_duration_seconds",
-      Number(process.hrtime.bigint() - startedAt) / 1e9,
-      { topic: event.topic }
-    );
+    const durationSeconds =
+      Number(process.hrtime.bigint() - startedAt) / 1e9;
+
+    topics.forEach((topic) => {
+      observeHistogram(
+        "outbox_publication_duration_seconds",
+        durationSeconds,
+        { topic }
+      );
+    });
   } catch (error) {
-    incrementCounter("kafka_publish_failures_total", {
-      event_type: event.eventType,
-      topic: event.topic,
+    events.forEach((event) => {
+      incrementCounter("kafka_publish_failures_total", {
+        event_type: event.eventType,
+        topic: event.topic,
+      });
     });
     throw error;
   }
@@ -82,27 +97,34 @@ export const runOutboxRelayOnce = async (
     settings.leaseMs
   );
 
-  for (const event of events) {
-    try {
-      await publishOutboxEvent(producer, event);
-      await markOutboxEventPublished(pool, event.id);
+  try {
+    await publishOutboxEvents(producer, events);
 
-      incrementCounter("outbox_published_total", {
-        event_type: event.eventType,
+    if (events.length > 0) {
+      await markOutboxEventsPublished(pool, events.map((event) => event.id));
+
+      events.forEach((event) => {
+        incrementCounter("outbox_published_total", {
+          event_type: event.eventType,
+        });
+
+        logger.info("outbox_event_published", {
+          outboxEventId: event.id,
+          eventId: event.payload.eventId,
+          eventType: event.eventType,
+          aggregateId: event.aggregateId,
+          topic: event.topic,
+          attemptCount: event.attemptCount,
+          correlationId: event.payload.correlationId,
+        });
       });
+    }
 
-      logger.info("outbox_event_published", {
-        outboxEventId: event.id,
-        eventId: event.payload.eventId,
-        eventType: event.eventType,
-        aggregateId: event.aggregateId,
-        topic: event.topic,
-        attemptCount: event.attemptCount,
-        correlationId: event.payload.correlationId,
-      });
-    } catch (error: unknown) {
-      const message = errorMessage(error);
+    return events.length;
+  } catch (error: unknown) {
+    const message = errorMessage(error);
 
+    for (const event of events) {
       if (event.attemptCount >= settings.maxAttempts) {
         await deadLetterOutboxEvent(pool, event.id, message);
         incrementCounter("outbox_dead_lettered_total", {
@@ -151,9 +173,9 @@ export const runOutboxRelayOnce = async (
         correlationId: event.payload.correlationId,
       });
     }
-  }
 
-  return events.length;
+    return 0;
+  }
 };
 
 let relayTimer: NodeJS.Timeout | null = null;
