@@ -96,10 +96,26 @@ export const claimPendingOutboxEvents = async (
   const boundedBatchSize = Math.min(Math.max(batchSize, 1), 100);
   const boundedLeaseMs = Math.min(Math.max(leaseMs, 1_000), 300_000);
 
-  const result = await pool.query(
-    `
-      WITH candidates AS (
-        SELECT candidate.id
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    /*
+     * Claim a single aggregate frontier first. Locking the frontier row gives
+     * concurrent relay instances a coordination point for that aggregate:
+     * another worker can still claim other aggregates, but it cannot skip the
+     * locked frontier and publish a later event from this same aggregate.
+     *
+     * We then claim a contiguous, currently eligible prefix for that aggregate
+     * in one transaction. This preserves per-aggregate ordering while allowing
+     * Kafka to receive a real batch even when one conversation is hot.
+     */
+    const frontierResult = await client.query(
+      `
+        SELECT
+          candidate.aggregate_id,
+          candidate.sequence_number
         FROM outbox_events AS candidate
         WHERE (
           (candidate.status = 'pending' AND candidate.available_at <= NOW())
@@ -115,38 +131,118 @@ export const claimPendingOutboxEvents = async (
         )
         ORDER BY candidate.sequence_number ASC
         FOR UPDATE SKIP LOCKED
-        LIMIT $1
-      )
-      UPDATE outbox_events AS claimed
-      SET
-        status = 'processing',
-        attempt_count = claimed.attempt_count + 1,
-        locked_until = NOW() + ($2::bigint * INTERVAL '1 millisecond'),
-        last_error = NULL
-      FROM candidates
-      WHERE claimed.id = candidates.id
-      RETURNING
-        claimed.id,
-        claimed.sequence_number,
-        claimed.aggregate_type,
-        claimed.aggregate_id,
-        claimed.event_type,
-        claimed.event_version,
-        claimed.topic,
-        claimed.partition_key,
-        claimed.payload,
-        claimed.headers,
-        claimed.status,
-        claimed.attempt_count,
-        claimed.available_at,
-        claimed.locked_until,
-        claimed.last_error,
-        claimed.created_at
-    `,
-    [boundedBatchSize, boundedLeaseMs]
-  );
+        LIMIT 1
+      `
+    );
 
-  return result.rows.map((row: Record<string, unknown>) => mapOutboxEvent(row));
+    if (frontierResult.rowCount === 0) {
+      await client.query("COMMIT");
+      return [];
+    }
+
+    const aggregateId = String(frontierResult.rows[0].aggregate_id);
+    const frontierSequenceNumber = Number(
+      frontierResult.rows[0].sequence_number
+    );
+
+    const candidatesResult = await client.query(
+      `
+        SELECT
+          candidate.id,
+          candidate.sequence_number,
+          candidate.aggregate_type,
+          candidate.aggregate_id,
+          candidate.event_type,
+          candidate.event_version,
+          candidate.topic,
+          candidate.partition_key,
+          candidate.payload,
+          candidate.headers,
+          candidate.status,
+          candidate.attempt_count,
+          candidate.available_at,
+          candidate.locked_until,
+          candidate.last_error,
+          candidate.created_at
+        FROM outbox_events AS candidate
+        WHERE candidate.aggregate_id = $1
+          AND candidate.status IN ('pending', 'processing')
+          AND (
+            (candidate.status = 'pending' AND candidate.available_at <= NOW())
+            OR
+            (candidate.status = 'processing' AND candidate.locked_until <= NOW())
+          )
+          AND NOT EXISTS (
+            SELECT 1
+            FROM outbox_events AS blocker
+            WHERE blocker.aggregate_id = candidate.aggregate_id
+              AND blocker.sequence_number > $2
+              AND blocker.sequence_number < candidate.sequence_number
+              AND blocker.status IN ('pending', 'processing')
+              AND NOT (
+                (blocker.status = 'pending' AND blocker.available_at <= NOW())
+                OR
+                (blocker.status = 'processing' AND blocker.locked_until <= NOW())
+              )
+          )
+        ORDER BY candidate.sequence_number ASC
+        FOR UPDATE SKIP LOCKED
+        LIMIT $3
+      `,
+      [aggregateId, frontierSequenceNumber, boundedBatchSize]
+    );
+
+    if (candidatesResult.rowCount === 0) {
+      await client.query("COMMIT");
+      return [];
+    }
+
+    const ids = candidatesResult.rows.map((row: Record<string, unknown>) =>
+      String(row.id)
+    );
+
+    const claimedResult = await client.query(
+      `
+        UPDATE outbox_events
+        SET
+          status = 'processing',
+          attempt_count = attempt_count + 1,
+          locked_until = NOW() + ($2::bigint * INTERVAL '1 millisecond'),
+          last_error = NULL
+        WHERE id = ANY($1::uuid[])
+          AND status IN ('pending', 'processing')
+        RETURNING
+          id,
+          sequence_number,
+          aggregate_type,
+          aggregate_id,
+          event_type,
+          event_version,
+          topic,
+          partition_key,
+          payload,
+          headers,
+          status,
+          attempt_count,
+          available_at,
+          locked_until,
+          last_error,
+          created_at
+      `,
+      [ids, boundedLeaseMs]
+    );
+
+    await client.query("COMMIT");
+
+    return claimedResult.rows
+      .map((row: Record<string, unknown>) => mapOutboxEvent(row))
+      .sort((left, right) => left.sequenceNumber - right.sequenceNumber);
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
 };
 
 export const markOutboxEventsPublished = async (
