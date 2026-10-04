@@ -269,11 +269,12 @@ test("expired processing leases are reclaimed after a publisher crash", async ()
   assert.equal(recovered[0].attemptCount, 2);
 });
 
-test("same conversation keeps its earliest unfinished outbox event ahead of later events", async () => {
+test("same conversation claims a contiguous ordered batch", async () => {
   const { sender, receiver } = await createUsers();
   const conversation = await createDirectConversation(sender.id, receiver.id);
   const firstMessageId = randomUUID();
   const secondMessageId = randomUUID();
+  const thirdMessageId = randomUUID();
 
   const firstEvent = createMessageCreatedEvent({
     messageId: firstMessageId,
@@ -289,6 +290,14 @@ test("same conversation keeps its earliest unfinished outbox event ahead of late
     senderId: sender.id,
     recipientId: receiver.id,
     createdAt: new Date("2026-01-01T00:00:01.000Z").toISOString(),
+    correlationId: randomUUID(),
+  });
+  const thirdEvent = createMessageCreatedEvent({
+    messageId: thirdMessageId,
+    conversationId: conversation.id,
+    senderId: sender.id,
+    recipientId: receiver.id,
+    createdAt: new Date("2026-01-01T00:00:02.000Z").toISOString(),
     correlationId: randomUUID(),
   });
 
@@ -307,14 +316,39 @@ test("same conversation keeps its earliest unfinished outbox event ahead of late
       topic: MESSAGE_CREATED_TOPIC,
       partitionKey: conversation.id,
     });
+    await insertOutboxEvent(client, {
+      event: thirdEvent,
+      aggregateType: "conversation",
+      topic: MESSAGE_CREATED_TOPIC,
+      partitionKey: conversation.id,
+    });
+    await client.query(
+      "UPDATE outbox_events SET available_at = NOW() + INTERVAL '1 hour' WHERE id = $1",
+      [secondEvent.eventId]
+    );
     await client.query("COMMIT");
   } finally {
     client.release();
   }
 
-  const claims = await claimPendingOutboxEvents(postgresPool, 10, 30_000);
-  assert.equal(claims.length, 1);
-  assert.equal(claims[0].id, firstEvent.eventId);
+  const firstClaim = await claimPendingOutboxEvents(postgresPool, 10, 30_000);
+  assert.equal(firstClaim.length, 1);
+  assert.equal(firstClaim[0].id, firstEvent.eventId);
+
+  await postgresPool.query(
+    "UPDATE outbox_events SET status = 'published', locked_until = NULL WHERE id = $1",
+    [firstEvent.eventId]
+  );
+  await postgresPool.query(
+    "UPDATE outbox_events SET available_at = NOW() WHERE id = $1",
+    [secondEvent.eventId]
+  );
+
+  const secondClaim = await claimPendingOutboxEvents(postgresPool, 10, 30_000);
+  assert.deepEqual(
+    secondClaim.map((event) => event.id),
+    [secondEvent.eventId, thirdEvent.eventId]
+  );
 });
 
 test("notification consumer ignores duplicate event delivery without duplicating the side effect", async () => {
