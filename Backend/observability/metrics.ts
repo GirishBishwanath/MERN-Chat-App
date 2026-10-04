@@ -191,11 +191,15 @@ export const renderMetrics = (): string => {
   ["outbox_retry_total", "Outbox retries scheduled."],
   ["outbox_dead_lettered_total", "Outbox events moved to durable dead-letter state."],
   ["outbox_metrics_collection_failures_total", "Outbox metric collection failures."],
+  ["outbox_relay_batches_total", "Outbox relay batches completed."],
 ].forEach(([name, help]) => defineCounter(name, help));
 
 defineHistogram("http_request_duration_seconds","HTTP request duration.",[0.005,0.01,0.025,0.05,0.1,0.25,0.5,1,2,5]);
 defineHistogram("db_operation_duration_seconds","Selected database operation duration.",[0.005,0.01,0.025,0.05,0.1,0.25,0.5,1,2,5]);
 defineHistogram("redis_operation_duration_seconds","Selected Redis operation duration.",[0.005,0.01,0.025,0.05,0.1,0.25,0.5,1,2,5]);
 defineHistogram("outbox_publication_duration_seconds","Outbox Kafka publication duration.",[0.005,0.01,0.025,0.05,0.1,0.25,0.5,1,2,5]);
+defineHistogram("outbox_claim_duration_seconds","Outbox claim transaction duration.",[0.005,0.01,0.025,0.05,0.1,0.25,0.5,1,2,5]);
+defineHistogram("outbox_mark_published_duration_seconds","Outbox published-state update duration.",[0.005,0.01,0.025,0.05,0.1,0.25,0.5,1,2,5]);
+defineHistogram("outbox_relay_batch_size","Number of events claimed per relay batch.",[1,5,10,20,50,100]);
 
 export const metricsContentType = "text/plain; version=0.0.4; charset=utf-8";
