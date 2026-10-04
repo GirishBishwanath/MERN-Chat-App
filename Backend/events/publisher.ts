@@ -194,7 +194,16 @@ export const startOutboxRelay = (
     relayRunning = true;
 
     try {
-      await runOutboxRelayOnce(producer, pool, options);
+      // Drain a bounded number of batches in one poll cycle. This is important
+      // for a hot aggregate: claimPendingOutboxEvents intentionally returns
+      // only the earliest unfinished event for an aggregate to preserve order.
+      // Requiring another timer tick after every event would artificially cap
+      // a single busy conversation at roughly one event per poll interval.
+      const maxBatchesPerPoll = 100;
+      for (let batch = 0; batch < maxBatchesPerPoll; batch += 1) {
+        const processed = await runOutboxRelayOnce(producer, pool, options);
+        if (processed === 0) break;
+      }
     } catch (error: unknown) {
       logger.error("outbox_relay_failed", {
         errorName: error instanceof Error ? error.name : "UnknownError",
