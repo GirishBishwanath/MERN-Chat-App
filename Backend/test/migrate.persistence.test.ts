@@ -59,6 +59,7 @@ test("migration runner is idempotent", async () => {
     { version: "001_initial_schema" },
     { version: "002_notifications" },
     { version: "003_outbox" },
+    { version: "004_outbox_pending_aggregate_order" },
   ]);
 });
 
@@ -82,6 +83,7 @@ test("migration runner serializes concurrent execution", async () => {
     { version: "001_initial_schema" },
     { version: "002_notifications" },
     { version: "003_outbox" },
+    { version: "004_outbox_pending_aggregate_order" },
   ]);
 });
 
