@@ -84,7 +84,7 @@ export const config = Object.freeze({
   corsOrigins: parseCorsOrigins(),
   redis: Object.freeze({ url: redisUrl }),
   outbox: Object.freeze({
-    batchSize: positiveInt("OUTBOX_BATCH_SIZE", 20),
+    batchSize: positiveInt("OUTBOX_BATCH_SIZE", 100),
     leaseMs: positiveInt("OUTBOX_LEASE_MS", 30_000),
     maxAttempts: positiveInt("OUTBOX_MAX_ATTEMPTS", 8),
     pollIntervalMs: positiveInt("OUTBOX_POLL_INTERVAL_MS", 1_000),
