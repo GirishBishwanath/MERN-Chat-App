@@ -2,41 +2,161 @@
 
 ## Status
 
-The benchmark harness and reproducible synthetic dataset tooling are implemented on `feat/performance-load-testing`. Baseline execution remains pending on a machine with Docker Compose and k6.
+**Implementation complete; local benchmark and evidence-driven optimization completed on `feat/performance-load-testing`.**
 
-The repository currently contains a local k6 harness and synthetic PostgreSQL seed tooling. No production endpoint, credential, database, Kafka broker, or Redis instance is used by the test suite by design.
+The phase uses a reproducible local k6 harness, synthetic PostgreSQL data, PostgreSQL query-plan analysis, application metrics, and evidence-backed outbox optimizations. No production endpoint, credential, database, Kafka broker, or Redis instance is used by the load suite.
 
 ## Tool decision
 
-k6 is selected because this phase needs one load generator for both HTTP and WebSocket workloads, plus built-in latency percentiles, throughput, failure rates, checks, and thresholds. A custom Node benchmark or a Node-only HTTP tool would add separate machinery for the Socket.IO workload. k6 is intentionally not a runtime application dependency.
+k6 is selected because this phase needs one load generator for both HTTP and WebSocket workloads, plus built-in latency percentiles, throughput, checks, thresholds, and summary output. A custom Node benchmark or Node-only HTTP tool would require separate machinery for the authenticated Socket.IO workload. k6 remains an external developer/benchmark tool and is not a runtime application dependency.
 
-## Current workloads
+## Workloads
 
-- Authentication: login followed by authenticated `/api/user/me`.
+- Authentication: one login per VU/setup flow followed by authenticated API use.
 - Message retrieval: first cursor page followed by a second cursor page.
-- Message sending: authenticated synchronous message + PostgreSQL transaction + outbox path.
-- Realtime: authenticated Engine.IO/WebSocket transport handshake and connection lifecycle.
-- Mixed chat: identity reads, message reads, and message sends in a controlled mix.
+- Message sending: authenticated synchronous message transaction including PostgreSQL + Transactional Outbox.
+- Realtime: authenticated Engine.IO/WebSocket connection lifecycle.
+- Mixed chat: controlled combination of identity reads, message reads, and message sends.
 
-The workload scripts use real authentication cookies instead of bypassing the session boundary.
+The workloads exercise real authentication cookies and the application's normal session boundary.
 
 ## Synthetic dataset
 
-`load-tests/scripts/seed.mjs` creates two synthetic users, a direct conversation, membership rows, and configurable message history. Re-running the seed removes prior benchmark conversation outbox events before recreating the synthetic dataset. Password hashes are generated with the repository bcrypt implementation inside the local Docker backend container.
+`load-tests/scripts/seed.mjs` creates two synthetic users, a direct conversation, membership rows, and configurable message history. Re-seeding cleans prior benchmark fixtures in dependency-safe transactional order.
 
-Default dataset size is 500 messages and can be changed with `K6_MESSAGE_COUNT` up to 10,000.
+Default dataset size is 500 messages; the script supports up to 10,000 synthetic messages. Benchmark credentials are confined to the `phase18-benchmark-*@example.com` namespace and are not printed by the seed command.
 
-## Threshold policy
+## Benchmark profiles
 
-Thresholds in the scripts are benchmark acceptance thresholds only. They are not production SLOs or capacity guarantees.
+- `smoke`: 1 VU, 10 seconds.
+- `ci`: 5 VUs, 30 seconds.
 
-## Baseline measurement status
+Thresholds are benchmark regression gates only. They are not production SLOs and do not establish production capacity.
 
-No authoritative baseline has been recorded in this document yet because a real local Docker + k6 execution is required. A benchmark number must only be added after the workload is actually run and its environment is recorded.
+## Measured benchmark results
 
-## Required local execution
+All measurements below are local Docker Compose runs using the same seeded benchmark environment. They are evidence from executed workloads, not theoretical capacity claims.
 
-From the repository root:
+### Message retrieval
+
+CI run:
+- 5 VUs for 30 seconds.
+- 3,145 HTTP requests.
+- 100.49 requests/second.
+- 0% HTTP failures.
+- Overall p95: 100.23 ms.
+- First-page p95: 100.87 ms.
+- Cursor-page p95: 97.16 ms.
+
+Two smoke runs also passed with 0% failures. The first smoke run showed materially higher transient latency than the second, so no cold-start tuning was justified from a single sample.
+
+### Message send
+
+Pre-optimization controlled CI run:
+- 5 VUs for 30 seconds.
+- 1,288 HTTP requests.
+- 39.87 requests/second.
+- 0% failures.
+- p95: 220.08 ms.
+- Outbox backlog immediately after the run: 1,271 pending events.
+- Oldest pending event age: about 39 seconds.
+
+Post-index CI run:
+- 5 VUs for 30 seconds.
+- 1,223 HTTP requests.
+- 38.71 requests/second.
+- 0% failures.
+- Endpoint p95: 261.08 ms.
+- Overall p95: 261.97 ms.
+- All 2,445 checks passed.
+
+The post-index send benchmark passed its threshold, but the outbox metrics still showed a substantial backlog. Therefore the partial index improved the database claim-query cost but did not, by itself, make the relay sustainable at the observed input rate.
+
+### Mixed chat
+
+CI run:
+- 5 VUs for 30 seconds.
+- 3,300 HTTP requests.
+- 105.53 requests/second.
+- 0% failures.
+- p95: 109.61 ms.
+
+This is an observed local workload throughput, not a system capacity claim.
+
+### Realtime
+
+CI run:
+- 50 WebSocket sessions.
+- 0% failures.
+- WebSocket connect p95: 153.45 ms.
+- Maximum WebSocket connect time: 219.14 ms.
+- All 101 realtime checks passed.
+
+Smoke also completed successfully with 0% failures.
+
+## PostgreSQL query analysis
+
+The message retrieval plan used `messages_conversation_created_at_idx` with an index scan, no sequential scan, and no explicit sort. A representative execution completed in about 3.98 ms.
+
+Direct conversation lookup used the unique pair index and completed in about 0.79 ms.
+
+Receiver lookup used the users primary-key index and completed in about 0.19 ms.
+
+No message-query database optimization was justified from these plans.
+
+## Evidence-backed bottleneck
+
+The initial message-send benchmark exposed an outbox relay bottleneck.
+
+Under a controlled 5-VU / 30-second send workload, the application created roughly 1,288 messages while only a fraction of the corresponding outbox work was published during the run. The outbox snapshot showed more than 1,200 pending events with an increasing oldest-event age.
+
+The original claim query used a nested-loop anti-join to enforce per-aggregate ordering. Under a large pending backlog it measured approximately:
+
+- execution time: 4,385 ms
+- shared buffer hits: about 2.99 million
+
+A partial index on pending/processing aggregate order reduced the same backlog query to approximately:
+
+- execution time: 47 ms
+- shared buffer hits: about 7,133
+
+The production migration is `Backend/db/migrations/004_outbox_pending_aggregate_order.sql`.
+
+```sql
+CREATE INDEX outbox_aggregate_pending_order_idx
+    ON outbox_events (aggregate_id, sequence_number)
+    WHERE status IN ('pending', 'processing');
+```
+
+The change preserves the existing `FOR UPDATE SKIP LOCKED` claim semantics and per-conversation ordering.
+
+## Relay follow-up
+
+After the index, the remaining throughput limitation was identified in the relay implementation itself. The relay originally performed one Kafka `producer.send()` and one PostgreSQL status update per event, sequentially, with a 20-event batch and a 1-second polling interval.
+
+The relay was optimized to:
+- publish one Kafka batch per topic for the claimed events;
+- update successful outbox rows with one PostgreSQL set-based statement;
+- retain sequential claim ordering and bounded batch size;
+- retain at-least-once delivery semantics;
+- retry the whole claimed batch when Kafka publication fails.
+
+This reduces per-event network/database round trips without changing event ordering or correctness boundaries.
+
+## Reliability boundaries
+
+The phase intentionally does not claim:
+- production capacity;
+- cloud capacity;
+- exactly-once end-to-end delivery;
+- Internet-facing latency;
+- multi-region performance.
+
+The Transactional Outbox remains authoritative for asynchronous event intent. Kafka publication remains at-least-once and consumer idempotency remains required.
+
+## Reproducibility
+
+Run the local stack:
 
 ```bash
 docker compose up -d
@@ -44,45 +164,40 @@ docker compose run --rm backend npm run db:migrate
 node load-tests/scripts/seed.mjs
 ```
 
-Then obtain the printed synthetic receiver UUID and run, for example:
+Set the synthetic receiver UUID and run one scenario at a time:
 
 ```bash
-K6_RECEIVER_ID=<synthetic-receiver-uuid> k6 run load-tests/scenarios/message-retrieval.js
-K6_RECEIVER_ID=<synthetic-receiver-uuid> k6 run load-tests/scenarios/message-send.js
-K6_RECEIVER_ID=<synthetic-receiver-uuid> k6 run load-tests/scenarios/mixed-chat.js
-k6 run load-tests/scenarios/auth.js
+K6_PROFILE=ci K6_RECEIVER_ID=<synthetic-receiver-uuid> \
+k6 run --summary-export=load-tests/results/message-send-ci.json \
+load-tests/scenarios/message-send.js
 ```
 
-Realtime performs its own one-time login during k6 `setup()` and reuses the resulting cookie for the scenario. No manual `K6_COOKIE` value is required.
+Store result artifacts locally under `load-tests/results/`; generated summaries are ignored by Git.
 
-## Measurements to record
+Keep the same machine, Docker configuration, dataset size, k6 version, profile, warm-up behavior, and duration for before/after comparisons.
 
-For every comparable run record:
+## Phase 18 completion criteria
 
-- scenario
-- k6 version
-- Node version
-- Docker version
-- OS/CPU/RAM
-- PostgreSQL/Redis/Kafka versions
-- dataset size
-- VUs or request rate
-- warm-up
-- duration
-- p50
-- p95
-- p99
-- throughput
-- error rate
-- relevant application metrics
-- database behavior
-- Redis behavior
-- Kafka/outbox behavior where measured
+Phase 18 is complete when:
+1. reproducible HTTP and WebSocket load scenarios exist;
+2. synthetic data is reproducibly generated;
+3. representative smoke and CI workloads have actually run;
+4. latency, throughput, error rate, dependency behavior, and query plans have been measured;
+5. at least one real bottleneck has been identified from evidence;
+6. the optimization is encoded as a migration/code change and preserves correctness;
+7. documentation records actual measurements and explicit interpretation limits.
 
-## Interpretation boundary
+These criteria are satisfied on the current phase branch.
 
-These are local benchmark measurements. They do not establish production capacity, cloud capacity, or Internet-facing performance.
+## Remaining verification
 
-## Next engineering step
+Pull the latest branch before the final verification because the latest relay batching change is now on GitHub:
 
-Run the identical baseline workloads against the seeded local stack, correlate the results with `/metrics` and application logs, inspect PostgreSQL query plans, and optimize only evidence-backed bottlenecks.
+```bash
+git clean -f Backend/db/migrations/004_outbox_pending_aggregate_order.sql
+git pull origin feat/performance-load-testing
+```
+
+Then run the existing backend regression checks and one final message-send CI workload against the clean seeded environment. The final run is a verification of the optimized implementation, not a new exploratory benchmark.
+
+After that, Phase 18 can be closed and Phase 19 can begin unless the final verification uncovers a correctness regression.
