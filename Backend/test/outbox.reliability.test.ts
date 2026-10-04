@@ -336,7 +336,7 @@ test("same conversation claims a contiguous ordered batch", async () => {
   assert.equal(firstClaim[0].id, firstEvent.eventId);
 
   await postgresPool.query(
-    "UPDATE outbox_events SET status = 'published', locked_until = NULL WHERE id = $1",
+    "UPDATE outbox_events SET status = 'published', published_at = NOW(), locked_until = NULL WHERE id = $1",
     [firstEvent.eventId]
   );
   await postgresPool.query(
