@@ -2,7 +2,7 @@
 
 ## Status
 
-**Implementation complete; final clean benchmark verification is still required before Phase 18 is closed.**
+**Implementation complete; final benchmark and repeatability verification passed. Phase 18 is ready to close.**
 
 The phase uses a reproducible local k6 harness, synthetic PostgreSQL data, PostgreSQL query-plan analysis, application metrics, and evidence-backed outbox optimizations. No production endpoint, credential, database, Kafka broker, or Redis instance is used by the load suite.
 
@@ -190,23 +190,66 @@ Phase 18 is complete when:
 
 The implementation and automated regression criteria are satisfied on the current phase branch. The final sustainability criterion remains intentionally evidence-based: the clean benchmark must show that the outbox backlog drains after traffic stops.
 
-## Remaining verification
+## Final clean benchmark evidence
 
-Pull the latest branch before the final verification because the latest relay batching change is now on GitHub:
+Two independent final message-send CI runs were executed locally after the ordered outbox batching and relay batch-size changes.
 
-```bash
-git clean -f Backend/db/migrations/004_outbox_pending_aggregate_order.sql
-git pull origin feat/performance-load-testing
-```
+### Final run 1
 
-Then run the existing backend regression checks and one final message-send CI workload against a clean seeded environment. Immediately after the load run, record the outbox counters and then wait for the relay to drain the backlog.
+- Profile: `ci` — 5 VUs for 30 seconds.
+- Requests: 3,222.
+- Throughput: 104.72 requests/second.
+- HTTP failures: 0%.
+- Checks: 6,443/6,443 passed.
+- Message-send p95: 78.51 ms.
+- Message-send p90: 67.00 ms.
+- Message-send median: 43.17 ms.
+- Message-send maximum: 187.55 ms.
+- Outbox events created during the run: 3,221.
+- Kafka publication attempts: 3,221.
+- Outbox events published: 3,221.
+- Pending outbox events immediately after the run: 0.
+- Oldest pending age: 0 seconds.
+- Retries: 0.
+- Dead-lettered events: 0.
 
-Phase 18 closes only when:
-- HTTP failures remain below the benchmark threshold;
-- message-send p95 remains below 1 second;
-- outbox retries and dead letters remain zero;
-- the pending backlog returns to zero after traffic stops;
-- oldest pending age returns to zero;
-- the drain is repeatable.
+### Final repeatability run
 
-If the backlog still grows, continue measuring the relay rather than moving to Phase 19.
+- Profile: `ci` — 5 VUs for 30 seconds.
+- Requests: 2,821.
+- Throughput: 92.87 requests/second.
+- HTTP failures: 0%.
+- Checks: 5,641/5,641 passed.
+- Message-send p95: 123.67 ms.
+- Message-send p90: 97.85 ms.
+- Message-send median: 42.71 ms.
+- Message-send maximum: 250.96 ms.
+- Outbox counters after the run: 6,041 messages created, 6,041 Kafka publication attempts, and 6,041 successfully published outbox events.
+- Pending outbox events: 0.
+- Oldest pending age: 0 seconds.
+- Retries: 0.
+- Dead-lettered events: 0.
+
+The second run was slower than the first, but both remained comfortably below the 1-second benchmark threshold and both reproduced the critical sustainability result: the outbox did not retain a backlog after traffic stopped.
+
+These results are local benchmark observations, not production capacity claims.
+
+## Phase 18 completion decision
+
+The phase completion criteria are now satisfied:
+1. reproducible HTTP and WebSocket load scenarios exist;
+2. synthetic data is reproducibly generated;
+3. representative smoke and CI workloads have actually run;
+4. latency, throughput, error rate, dependency behavior, and query plans have been measured;
+5. a real outbox relay bottleneck was identified from evidence;
+6. the optimization is encoded as migration/code changes and preserves ordering, leasing, and at-least-once delivery semantics;
+7. documentation records actual measurements and explicit interpretation limits;
+8. the clean message-send benchmark and an independent repeat run both completed with zero HTTP failures and zero residual outbox backlog.
+
+Phase 18 is therefore ready to close. No additional performance optimization is justified from these measurements.
+
+## Reproducibility note
+
+The final runs used the existing local Docker Compose stack, k6 CI profile, synthetic benchmark identities, and the same 30-second / 5-VU message-send workload. The generated JSON summaries remain local artifacts and are intentionally ignored by Git.
+
+Do not interpret these runs as production capacity, Internet latency, or cloud scalability measurements.
