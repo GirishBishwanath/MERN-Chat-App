@@ -87,4 +87,4 @@ Costs:
 
 ## Follow-up
 
-Phase 20 may consume the immutable GHCR images from this pipeline when the cloud runtime and deployment strategy are implemented and verified.
+Phase 21 may consume the immutable GHCR images from this pipeline when the cloud runtime and deployment strategy are implemented and verified.
