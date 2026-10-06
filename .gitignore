@@ -16,3 +16,8 @@ pnpm-debug.log*
 # OS files
 .DS_Store
 Thumbs.db
+
+# Local performance benchmark output
+load-tests/results/*.json
+load-tests/results/*.html
+load-tests/results/*.log

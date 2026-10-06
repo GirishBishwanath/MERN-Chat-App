@@ -6,7 +6,7 @@ import {
   calculateOutboxBackoffMs,
   claimPendingOutboxEvents,
   deadLetterOutboxEvent,
-  markOutboxEventPublished,
+  markOutboxEventsPublished,
   rescheduleOutboxEvent,
   type OutboxEvent,
 } from "../repositories/postgres/outbox.repository.js";
@@ -25,7 +25,7 @@ export interface OutboxRelayOptions {
 }
 
 const DEFAULT_OPTIONS: Required<OutboxRelayOptions> = {
-  batchSize: 20,
+  batchSize: 100,
   leaseMs: 30_000,
   maxAttempts: 8,
   baseBackoffMs: 1_000,
@@ -35,36 +35,51 @@ const DEFAULT_OPTIONS: Required<OutboxRelayOptions> = {
 const errorMessage = (error: unknown): string =>
   error instanceof Error ? error.message : "Unknown Kafka publication error";
 
-const publishOutboxEvent = async (
+const publishOutboxEvents = async (
   producer: Producer,
-  event: OutboxEvent
+  events: OutboxEvent[]
 ): Promise<void> => {
-  const startedAt = process.hrtime.bigint();
+  if (events.length === 0) return;
 
-  incrementCounter("kafka_publish_total", {
-    event_type: event.eventType,
-    topic: event.topic,
+  const startedAt = process.hrtime.bigint();
+  const topics = new Set(events.map((event) => event.topic));
+
+  events.forEach((event) => {
+    incrementCounter("kafka_publish_total", {
+      event_type: event.eventType,
+      topic: event.topic,
+    });
   });
 
   try {
-    await producer.send({
-      topic: event.topic,
-      messages: [{
-        key: event.partitionKey,
-        value: JSON.stringify(event.payload),
-        headers: event.headers,
-      }],
-    });
+    for (const topic of topics) {
+      const topicEvents = events.filter((event) => event.topic === topic);
+      await producer.send({
+        topic,
+        messages: topicEvents.map((event) => ({
+          key: event.partitionKey,
+          value: JSON.stringify(event.payload),
+          headers: event.headers,
+        })),
+      });
+    }
 
-    observeHistogram(
-      "outbox_publication_duration_seconds",
-      Number(process.hrtime.bigint() - startedAt) / 1e9,
-      { topic: event.topic }
-    );
+    const durationSeconds =
+      Number(process.hrtime.bigint() - startedAt) / 1e9;
+
+    topics.forEach((topic) => {
+      observeHistogram(
+        "outbox_publication_duration_seconds",
+        durationSeconds,
+        { topic }
+      );
+    });
   } catch (error) {
-    incrementCounter("kafka_publish_failures_total", {
-      event_type: event.eventType,
-      topic: event.topic,
+    events.forEach((event) => {
+      incrementCounter("kafka_publish_failures_total", {
+        event_type: event.eventType,
+        topic: event.topic,
+      });
     });
     throw error;
   }
@@ -76,33 +91,52 @@ export const runOutboxRelayOnce = async (
   options: OutboxRelayOptions = {}
 ): Promise<number> => {
   const settings = { ...DEFAULT_OPTIONS, ...options };
+  const claimStartedAt = process.hrtime.bigint();
   const events = await claimPendingOutboxEvents(
     pool,
     settings.batchSize,
     settings.leaseMs
   );
+  observeHistogram(
+    "outbox_claim_duration_seconds",
+    Number(process.hrtime.bigint() - claimStartedAt) / 1e9
+  );
+  observeHistogram("outbox_relay_batch_size", events.length);
+  incrementCounter("outbox_relay_batches_total");
 
-  for (const event of events) {
-    try {
-      await publishOutboxEvent(producer, event);
-      await markOutboxEventPublished(pool, event.id);
+  try {
+    await publishOutboxEvents(producer, events);
 
-      incrementCounter("outbox_published_total", {
-        event_type: event.eventType,
+    if (events.length > 0) {
+      const markStartedAt = process.hrtime.bigint();
+      await markOutboxEventsPublished(pool, events.map((event) => event.id));
+      observeHistogram(
+        "outbox_mark_published_duration_seconds",
+        Number(process.hrtime.bigint() - markStartedAt) / 1e9
+      );
+
+      events.forEach((event) => {
+        incrementCounter("outbox_published_total", {
+          event_type: event.eventType,
+        });
+
+        logger.info("outbox_event_published", {
+          outboxEventId: event.id,
+          eventId: event.payload.eventId,
+          eventType: event.eventType,
+          aggregateId: event.aggregateId,
+          topic: event.topic,
+          attemptCount: event.attemptCount,
+          correlationId: event.payload.correlationId,
+        });
       });
+    }
 
-      logger.info("outbox_event_published", {
-        outboxEventId: event.id,
-        eventId: event.payload.eventId,
-        eventType: event.eventType,
-        aggregateId: event.aggregateId,
-        topic: event.topic,
-        attemptCount: event.attemptCount,
-        correlationId: event.payload.correlationId,
-      });
-    } catch (error: unknown) {
-      const message = errorMessage(error);
+    return events.length;
+  } catch (error: unknown) {
+    const message = errorMessage(error);
 
+    for (const event of events) {
       if (event.attemptCount >= settings.maxAttempts) {
         await deadLetterOutboxEvent(pool, event.id, message);
         incrementCounter("outbox_dead_lettered_total", {
@@ -151,9 +185,9 @@ export const runOutboxRelayOnce = async (
         correlationId: event.payload.correlationId,
       });
     }
-  }
 
-  return events.length;
+    return 0;
+  }
 };
 
 let relayTimer: NodeJS.Timeout | null = null;
@@ -172,7 +206,16 @@ export const startOutboxRelay = (
     relayRunning = true;
 
     try {
-      await runOutboxRelayOnce(producer, pool, options);
+      // Drain a bounded number of batches in one poll cycle. This is important
+      // for a hot aggregate: claimPendingOutboxEvents intentionally returns
+      // only the earliest unfinished event for an aggregate to preserve order.
+      // Requiring another timer tick after every event would artificially cap
+      // a single busy conversation at roughly one event per poll interval.
+      const maxBatchesPerPoll = 100;
+      for (let batch = 0; batch < maxBatchesPerPoll; batch += 1) {
+        const processed = await runOutboxRelayOnce(producer, pool, options);
+        if (processed === 0) break;
+      }
     } catch (error: unknown) {
       logger.error("outbox_relay_failed", {
         errorName: error instanceof Error ? error.name : "UnknownError",

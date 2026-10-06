@@ -25,7 +25,10 @@ const connectClient = (token?: string, query?: Record<string, string>): Promise<
       query, reconnection: false,
     });
     socket.once("connect", () => resolve(socket));
-    socket.once("connect_error", (error: SocketConnectError) => reject(error));
+    socket.once("connect_error", (error: SocketConnectError) => {
+      socket.close();
+      reject(error);
+    });
   });
 
 const expectConnectionError = async (token: string | undefined, expectedCode: string, query?: Record<string, string>): Promise<void> => {
